@@ -73,6 +73,15 @@ _save_context:
 	REG_S x30, PT_T5(sp)
 	REG_S x31, PT_T6(sp)
 
+#ifdef	CONFIG_RISCV_CFI
+	csrr s2, CSR_CFISTATUS
+	csrr s3, CSR_LPLR
+	csrr s4, CSR_SSP
+	REG_S s2, PT_CFISTATUS(sp)
+	REG_S s3, PT_LPLR(sp)
+	REG_S s4, PT_SSP(sp)
+#endif
+
 	/*
 	 * Disable user-mode memory access as it should only be set in the
 	 * actual user copy routines.

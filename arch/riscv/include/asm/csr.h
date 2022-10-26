@@ -168,6 +168,12 @@
 #define ENVCFG_CBIE_INV			_AC(0x3, UL)
 #define ENVCFG_FIOM			_AC(0x1, UL)
 
+#ifdef CONFIG_RISCV_CFI
+/* user mode csr i.e. csr accessible on all modes */
+#define CSR_LPLR                0x006
+#define CSR_SSP                 0x020
+#endif
+
 /* symbolic CSR names: */
 #define CSR_CYCLE		0xc00
 #define CSR_TIME		0xc01
@@ -246,6 +252,7 @@
 #define CSR_STVAL		0x143
 #define CSR_SIP			0x144
 #define CSR_SATP		0x180
+#define CSR_SCFISTATUS		0x10B
 
 #define CSR_STIMECMP		0x14D
 #define CSR_STIMECMPH		0x15D
@@ -261,6 +268,7 @@
 #define CSR_VSATP		0x280
 #define CSR_VSTIMECMP		0x24D
 #define CSR_VSTIMECMPH		0x25D
+#define CSR_VCFISTATUS		0x20B
 
 #define CSR_HSTATUS		0x600
 #define CSR_HEDELEG		0x602
@@ -296,6 +304,7 @@
 #define CSR_MARCHID		0xf12
 #define CSR_MIMPID		0xf13
 #define CSR_MHARTID		0xf14
+#define CSR_MCFISTATUS          0x30B
 
 #ifdef CONFIG_RISCV_M_MODE
 # define CSR_STATUS	CSR_MSTATUS
@@ -314,6 +323,9 @@
 # define RV_IRQ_SOFT		IRQ_M_SOFT
 # define RV_IRQ_TIMER	IRQ_M_TIMER
 # define RV_IRQ_EXT		IRQ_M_EXT
+#ifdef CONFIG_RISCV_CFI
+#define CSR_CFISTATUS   CSR_MCFISTATUS
+#endif
 #else /* CONFIG_RISCV_M_MODE */
 # define CSR_STATUS	CSR_SSTATUS
 # define CSR_IE		CSR_SIE
@@ -323,6 +335,10 @@
 # define CSR_CAUSE	CSR_SCAUSE
 # define CSR_TVAL	CSR_STVAL
 # define CSR_IP		CSR_SIP
+#ifdef CONFIG_RISCV_CFI
+# define CSR_CFISTATUS	CSR_SCFISTATUS
+#endif
+
 
 # define SR_IE		SR_SIE
 # define SR_PIE		SR_SPIE

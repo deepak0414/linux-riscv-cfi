@@ -113,6 +113,11 @@ void asm_offsets(void)
 	OFFSET(PT_STATUS, pt_regs, status);
 	OFFSET(PT_BADADDR, pt_regs, badaddr);
 	OFFSET(PT_CAUSE, pt_regs, cause);
+#ifdef	CONFIG_RISCV_CFI
+	OFFSET(PT_CFISTATUS, pt_regs, scfistatus);
+	OFFSET(PT_LPLR, pt_regs, lplr);
+	OFFSET(PT_SSP, pt_regs, ssp);
+#endif
 
 	OFFSET(SUSPEND_CONTEXT_REGS, suspend_context, regs);
 
