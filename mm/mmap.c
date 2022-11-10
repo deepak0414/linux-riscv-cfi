@@ -1253,8 +1253,10 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 		return -EINVAL;
 
 	/* If PROT_SHADOWSTACK is specified and arch doesn't support it, return -EINVAL */
-	if ((prot & PROT_SHADOWSTACK) && !arch_supports_shadow_stack())
+	if ((prot & PROT_SHADOWSTACK) && !arch_supports_shadow_stack()) {
+		printk("do_mmap with PROT_SHADOWSTACK but arch doesn't support");
 		return -EINVAL;
+	}
 	/*
 	 * Does the application expect PROT_READ to imply PROT_EXEC?
 	 *

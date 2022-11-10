@@ -39,8 +39,12 @@ static long riscv_sys_mmap(unsigned long addr, unsigned long len,
 	* Other architectures can treat different combinations for PROT_SHADOWSTACK
 	*/
 	if (unlikely((prot & PROT_SHADOWSTACK) && (prot & ~PROT_SHADOWSTACK))) {
+		printk("Shadow stack bit is turned on with other bits in prot\n");
 		return -EINVAL;
 	}
+
+	if (prot & PROT_SHADOWSTACK)
+		printk("mmap called with shadow stack memory protection\n");
 
 	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
 			       offset >> (PAGE_SHIFT - page_shift_offset));
