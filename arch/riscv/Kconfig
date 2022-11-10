@@ -10,6 +10,12 @@ config 64BIT
 config 32BIT
 	bool
 
+config ARCH_HAVE_CFI
+	bool
+	
+config RISCV_CFI
+	bool
+
 config RISCV
 	def_bool y
 	select ARCH_CLOCKSOURCE_INIT
@@ -127,6 +133,10 @@ config RISCV
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	select TRACE_IRQFLAGS_SUPPORT
+	select RISCV_CFI
+	select ARCH_USE_GNU_PROPERTY
+	select ARCH_HAVE_CFI
+	select ARCH_BINFMT_ELF_STATE
 	select UACCESS_MEMCPY if !MMU
 	select ZONE_DMA32 if 64BIT
 
@@ -280,6 +290,18 @@ config ARCH_RV64I
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER if !XIP_KERNEL
 	select SWIOTLB if MMU
+
+config FORCE_DYNAMIC_FTRACE
+	def_bool y
+	depends on ARCH_RV64I
+	depends on FUNCTION_TRACER
+	select DYNAMIC_FTRACE
+	help
+	  We keep the static function tracing (!DYNAMIC_FTRACE) around
+	  in order to test the non static function tracing in the
+	  generic code, as other architectures still use it. But we
+	  only need to keep it around for x86_64. No need to keep it
+	  for x86_32. For x86_32, force DYNAMIC_FTRACE.	
 
 endchoice
 
