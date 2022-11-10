@@ -74,12 +74,44 @@ _save_context:
 	REG_S x31, PT_T6(sp)
 
 #ifdef	CONFIG_RISCV_CFI
-	csrr s2, CSR_CFISTATUS
-	csrr s3, CSR_LPLR
-	csrr s4, CSR_SSP
-	REG_S s2, PT_CFISTATUS(sp)
-	REG_S s3, PT_LPLR(sp)
-	REG_S s4, PT_SSP(sp)
+	/*
+	* If U --> S, CSR_SCRATCH should be holding U TP
+	* If S --> S, CSR_SCRATCH should be holding S TP
+	* s2 == tp means, previous mode was S
+	* else previous mode U
+	* we need to save cfi status only when previous mode was U
+	*/
+	csrr s2, CSR_SCRATCH
+	xor s2, s2, tp
+	beqz s2, skip_bcfi_save
+
+	REG_L s2, TASK_TI_USER_CFI_STATUS(tp)
+	li s4, 0xffffffff
+	and s2, s2, s4 /* don't need top 32 bits */
+	andi s3, s2, CFISTATUS_UFCFIEN
+	beqz s3, skip_fcfi_save
+	/* fcfi is enabled, capture ELP and LLPR state and record it */
+	/* read csr only when cfi is enabled because we dont know whether hart has CFI implemented */
+	csrr s4, CSR_CFISTATUS
+	move s5, s4
+#ifdef CONFIG_RISCV_M_MODE
+	andi s5, s5, CFISTATUS_MPELP /* bit 6 is MELP status */
+#else
+	andi s5, s5, CFISTATUS_SPELP /* bit 7 is SELP status*/
+#endif
+	csrr s4, CSR_LPLR /* record label register */
+	slli s4, s4, 32 /* shift left by 32bit */
+
+	or s3, s2, s5 /* save elp status */
+	or s3, s3, s4 /* save label value */
+	REG_S s3, TASK_TI_USER_CFI_STATUS(tp) /* save it back in thread_info structure */
+
+skip_fcfi_save:
+	andi s3, s2, CFISTATUS_UFCFIEN
+	beqz s3, skip_bcfi_save
+	csrr s3, CSR_SSP
+	REG_S s3, TASK_TI_USER_SSP(tp) /* save user ssp in thread_info */
+skip_bcfi_save:
 #endif
 
 	/*
@@ -291,6 +323,38 @@ resume_userspace:
 	 * structures again.
 	 */
 	csrw CSR_SCRATCH, tp
+
+#ifdef	CONFIG_RISCV_CFI
+	/*
+	* TODO: debug. check a global flag if CFI is available on hart.
+	* If CFI is not available then we won't want to generate exception in trap handling code.
+	*/
+	xor s4, s4, s4 /* zero s4 */
+	REG_L s2, TASK_TI_USER_CFI_STATUS(tp)
+	andi s3, s2, CFISTATUS_UFCFIEN
+	beqz s3, skip_fcfi_resume
+	li s3, CFISTATUS_UFCFIEN
+	move s4, s2
+#ifdef CONFIG_RISCV_M_MODE
+	andi s4, s4, CFISTATUS_MPELP /* bit 6 is MELP status */
+#else
+	andi s4, s4, CFISTATUS_SPELP /* bit 7 is SELP status*/
+#endif
+	or s4, s3, s4
+	move s5, s2
+	srli s5, s5, 32
+	csrw CSR_LPLR, s5
+
+skip_fcfi_resume:
+	andi s3, s2, CFISTATUS_UBCFIEN
+	beqz s3, skip_bcfi_resume
+	REG_L s3, TASK_TI_USER_SSP(tp) /* save user ssp in thread_info */
+	csrw CSR_SSP, s3
+	ori s4, s4, CFISTATUS_UBCFIEN
+skip_bcfi_resume:
+	csrw CSR_CFISTATUS, s4
+#endif
+
 
 restore_all:
 #ifdef CONFIG_TRACE_IRQFLAGS

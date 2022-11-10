@@ -24,6 +24,7 @@
 #include <asm/switch_to.h>
 #include <asm/thread_info.h>
 #include <asm/cpuidle.h>
+#include <linux/mman.h>
 
 register unsigned long gp_in_global __asm__("gp");
 
@@ -187,3 +188,58 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	p->thread.sp = (unsigned long)childregs; /* kernel sp */
 	return 0;
 }
+
+
+#ifdef CONFIG_RISCV_CFI
+int allocate_shadow_stack(long *shadow_stack_top)
+{
+	int flags = MAP_ANONYMOUS | MAP_PRIVATE;
+	struct mm_struct *mm = current->mm;
+	unsigned long addr, populate, size;
+
+	*shadow_stack = 0;
+
+	size = round_up(min_t(unsigned long long, rlimit(RLIMIT_STACK), SZ_4G), PAGE_SIZE);
+	mmap_write_lock(mm);
+	addr = do_mmap(NULL, 0, size, PROT_SHADOWSTACK, flags, 0,
+	               &populate, NULL);
+	mmap_write_unlock(mm);
+
+	if (IS_ERR_VALUE(addr))
+		return PTR_ERR((void *)addr);
+
+	*shadow_stack_top = addr + size;
+
+	return 0;
+}
+
+/* gets called from load_elf_binary(). This'll setup shadow stack. */
+int arch_elf_setup_cfi_state(const struct arch_elf_state *state)
+{
+	int ret = 0;
+	long shadow_stack_top = 0;
+	struct thread_info *info = NULL;
+
+	/* setup cfi state only if implementation supports it */
+	if (arch_supports_cfi()) {
+		info = current_thread_info();
+		/* setup back cfi state */
+		if (state->flags & RISCV_ELF_BCFI) {
+			info->user_cfi_state.bcfi_en = 1;
+			ret = allocate_shadow_stack(&shadow_stack_top);
+			if (!shadow_stack_top)
+				return ret;
+			info->user_shdw_stk = shadow_stack_top;
+		}
+
+		/* setup forward cfi state */
+		if (state->flags & RISCV_ELF_FCFI) {
+			info->user_cfi_state.fcfi_en = 1;
+			info->user_cfi_state.elp = 0;
+			info->user_cfi_state.lp_label = 0;
+		}
+	}
+
+	return ret;
+}
+#endif
