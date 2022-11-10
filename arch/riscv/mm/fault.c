@@ -286,6 +286,12 @@ retry:
 		bad_area(regs, mm, code, addr);
 		return;
 	}
+
+	/* temp hack to test changes of PROT_SHADOWSTACK */
+	if (arch_supports_shadow_stack()) {
+		csr_write(CSR_SCFISTATUS, CFISTATUS_UBCFIEN);
+	}
+
 	if (likely(vma->vm_start <= addr))
 		goto good_area;
 	if (unlikely(!(vma->vm_flags & VM_GROWSDOWN))) {
