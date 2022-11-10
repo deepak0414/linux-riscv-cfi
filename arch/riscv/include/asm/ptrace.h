@@ -51,10 +51,6 @@ struct pt_regs {
 	unsigned long cause;
 	/* a0 value before the syscall */
 	unsigned long orig_a0;
-#ifdef	CONFIG_RISCV_CFI
-	/* RISCV CFI label state */
-	unsigned long lplr;
-#endif
 };
 
 #ifdef CONFIG_64BIT

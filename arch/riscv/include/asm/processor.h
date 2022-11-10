@@ -41,6 +41,30 @@ struct thread_struct {
 	unsigned long bad_cause;
 };
 
+#ifdef CONFIG_RISCV_CFI
+
+#define FCFI_LOWER_LABEL_SIZE 9
+#define FCFI_MID_LABEL_SIZE   8
+#define FCFI_UP_LABEL_SIZE    8
+
+#define FCFI_LABEL_SIZE (FCFI_LOWER_LABEL_SIZE + FCFI_MID_LABEL_SIZE + FCFI_UP_LABEL_SIZE)
+struct cfi_status {
+	unsigned long rsvd1 : 4;
+	unsigned long fcfi_en : 1;
+	unsigned long bcfi_en : 1;
+#ifdef CONFIG_RISCV_M_MODE
+	unsigned long elp : 1;
+	unsigned long elp_s : 1;
+#else
+	unsigned long elp_m : 1;
+	unsigned long elp : 1;
+#endif
+
+	unsigned long rsvd2 : 24;
+	unsigned long lp_label : FCFI_LABEL_SIZE;
+	unsigned long rsvd3 : ((sizeof(unsigned long)*8) - 32 - FCFI_LABEL_SIZE);
+};
+#endif
 /* Whitelist the fstate from the task_struct for hardened usercopy */
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
 						unsigned long *size)
@@ -84,6 +108,10 @@ static inline bool arch_supports_shadow_stack(void)
 	return __riscv_isa_extension_available(NULL, RISCV_ISA_EXT_ZCFI);
 }
 
+static inline bool arch_supports_cfi(void)
+{
+	return __riscv_isa_extension_available(NULL, RISCV_ISA_EXT_ZCFI);
+}
 
 #endif /* __ASSEMBLY__ */
 

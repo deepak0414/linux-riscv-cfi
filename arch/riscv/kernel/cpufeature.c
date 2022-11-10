@@ -77,6 +77,8 @@ void __init riscv_fill_hwcap(void)
 	static unsigned long isa2hwcap[256] = {0};
 	unsigned long hartid;
 
+	printk("Inside riscv_fill_hwcap\n");
+
 	isa2hwcap['i'] = isa2hwcap['I'] = COMPAT_HWCAP_ISA_I;
 	isa2hwcap['m'] = isa2hwcap['M'] = COMPAT_HWCAP_ISA_M;
 	isa2hwcap['a'] = isa2hwcap['A'] = COMPAT_HWCAP_ISA_A;

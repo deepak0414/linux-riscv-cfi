@@ -65,6 +65,15 @@ struct thread_info {
 	 */
 	long			kernel_sp;	/* Kernel stack pointer */
 	long			user_sp;	/* User stack pointer */
+#ifdef CONFIG_RISCV_CFI
+	/*
+	 * thread_info has two more fields to track cfi state (enabling and ssp pointer) for user mode.
+	 * Keeping cfi state in thread_info makes more sense instead of trap frame on kernel stack because user cfi state can't nest.
+	 * Whenever we enable supervisor cfi state, we can revisit below logic.
+	*/
+	struct cfi_status 	user_cfi_state; /* state of user cfi state. note this includes enabling, ELP state and LPLR as well  */
+	long			user_shdw_stk;  /* User shadow stack pointer */
+#endif
 	int			cpu;
 };
 
