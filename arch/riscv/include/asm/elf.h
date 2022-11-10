@@ -140,4 +140,58 @@ extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 				compat_arch_setup_additional_pages
 
 #endif /* CONFIG_COMPAT */
+
+struct arch_elf_state {
+	int flags;
+};
+
+#define INIT_ARCH_ELF_STATE {			\
+	.flags = 0,				\
+}
+
+#define RISCV_ELF_FCFI (1 << 0)
+#define RISCV_ELF_BCFI (1 << 1)
+
+static inline int arch_parse_elf_property(u32 type, const void *data,
+					  size_t datasz, bool compat,
+					  struct arch_elf_state *arch)
+{
+	/*
+	* No known properties for riscv compat yet
+	* TODO: may be remove it. We would want it to support in 32bit/compat
+	*/
+	if (IS_ENABLED(CONFIG_COMPAT) && compat)
+		return 0;
+
+	if (type == GNU_PROPERTY_RISCV_FEATURE_1_AND) {
+		const u32 *p = data;
+
+		if (datasz != sizeof(*p))
+			return -ENOEXEC;
+
+		if (arch_supports_cfi()) {
+		    if (*p & GNU_PROPERTY_RISCV_FEATURE_1_FCFI)
+			arch->flags |= RISCV_ELF_FCFI;
+		    if (*p & GNU_PROPERTY_RISCV_FEATURE_1_BCFI)
+			arch->flags |= RISCV_ELF_BCFI;
+		}
+	}
+	return 0;
+}
+
+static inline int arch_elf_pt_proc(void *ehdr, void *phdr,
+				   struct file *f, bool is_interp,
+				   struct arch_elf_state *state)
+{
+	return 0;
+}
+
+static inline int arch_check_elf(void *ehdr, bool has_interp,
+				 void *interp_ehdr,
+				 struct arch_elf_state *state)
+{
+	return 0;
+}
+
+
 #endif /* _ASM_RISCV_ELF_H */

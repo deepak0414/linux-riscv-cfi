@@ -109,4 +109,13 @@ static inline int arch_elf_adjust_prot(int prot,
 }
 #endif
 
+#ifdef CONFIG_ARCH_HAVE_CFI
+extern int arch_elf_setup_cfi_state(const struct arch_elf_state *state);
+#else
+static inline int arch_elf_setup_cfi_state(const struct arch_elf_state *state)
+{
+	return 0;
+}
+#endif
+
 #endif /* _LINUX_ELF_H */
