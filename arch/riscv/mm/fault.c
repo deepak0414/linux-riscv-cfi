@@ -274,7 +274,16 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
 
-	if (cause == EXC_STORE_PAGE_FAULT)
+	/*
+	* TODO: Shall we assert that vm_page_prot should be 010 if
+	* cause == EXC_SS_ACCESS_PAGE_FAULT. This'll ensure that
+	* arbitrary sspush/sspop/ssamoswap don't on regular memory don't pass through from here
+	*/
+	if (cause == EXC_STORE_PAGE_FAULT
+#ifdef CONFIG_RISCV_CFI
+	    || cause == EXC_SS_ACCESS_PAGE_FAULT
+#endif
+	    )
 		flags |= FAULT_FLAG_WRITE;
 	else if (cause == EXC_INST_PAGE_FAULT)
 		flags |= FAULT_FLAG_INSTRUCTION;

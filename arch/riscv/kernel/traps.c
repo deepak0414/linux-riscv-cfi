@@ -94,6 +94,153 @@ static void do_trap_error(struct pt_regs *regs, int signo, int code,
 	}
 }
 
+/* TODO/THINK: Should I move this to separate module considering this is CFI specific? */
+#ifdef CONFIG_RISCV_CFI
+#define SS_CHECKRA  0x8A12C073
+#define SS_PUSH_POP 0x81C04073
+#define SS_AMOSWAP  0x82004073
+
+#define LP_C_LL     0x83004073
+#define LP_C_ML     0x86804073
+#define LP_C_UL     0x8B804073
+
+bool is_ss_load_insn(unsigned long insn)
+{
+	if ((insn & SS_PUSH_POP) == SS_PUSH_POP)
+		return true;
+	/*
+	* SS_AMOSWAP overlaps with LP_S_LL.
+	* But LP_S_LL can never raise access fault
+	*/
+	if ((insn & SS_AMOSWAP) == SS_AMOSWAP)
+		return true;
+
+	return false;
+}
+
+bool is_ss_store_insn(unsigned long insn)
+{
+	if ((insn & SS_PUSH_POP) == SS_PUSH_POP)
+		return true;
+	/*
+	* SS_AMOSWAP overlaps with LP_S_LL.
+	* But LP_S_LL can never raise access fault
+	*/
+	if ((insn & SS_AMOSWAP) == SS_AMOSWAP)
+		return true;
+
+	return false;
+}
+
+bool is_cfi_violation_insn(unsigned long insn)
+{
+	struct task_struct *task = current;
+
+	if (insn == SS_CHECKRA) {
+		pr_warn("cfi violation (sschkra): comm = %s, task = %p\n", task->comm, task);
+		return true;
+	}
+	if ((insn & LP_C_LL) == LP_C_LL) {
+		pr_warn("cfi violation (lpcll): comm = %s, task = %p\n", task->comm, task);
+		return true;
+	}
+	if ((insn & LP_C_ML) == LP_C_ML) {
+		pr_warn("cfi violation (lpcml): comm = %s, task = %p\n", task->comm, task);
+		return true;
+	}
+	if ((insn & LP_C_UL) == LP_C_UL) {
+		pr_warn("cfi violation (lpcul): comm = %s, task = %p\n", task->comm, task);
+		return true;
+	}
+
+	return false;
+}
+
+int handle_illegal_instruction(struct pt_regs *regs)
+{
+	/* stval should hold faulting opcode */
+	unsigned long insn = csr_read(stval);
+	struct thread_info *info = NULL;
+	struct task_struct *task = current;
+
+	if (arch_supports_cfi()) {
+		info = current_thread_info();
+		/* If fcfi enabled and  ELP = 1, suppress ELP (audit mode)  and resume */
+		if (info->user_cfi_state.fcfi_en && info->user_cfi_state.elp) {
+			pr_warn("cfi violation (elp): comm = %s, task = %p\n", task->comm, task);
+			info->user_cfi_state.elp = 0;
+			return 0;
+		}
+		/* if faulting opcode is sscheckra/lpcll/lpcml/lpcll, advance PC and resume */
+		if (is_cfi_violation_insn(insn)) {
+			regs->epc += 4;
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+ulong get_instruction(ulong epc)
+{
+	ulong *epc_ptr = (ulong *) epc;
+	ulong insn = 0;
+	__enable_user_access();
+	insn = *epc_ptr;
+	__disable_user_access();
+	return insn;
+}
+extern asmlinkage void do_page_fault(struct pt_regs *regs);
+/*
+ * If CFI enabled then following then load access fault can occur if
+ * -- ssload (sspop/ssamoswap) happens on non-shadow stack memory.
+ *    This is a valid case when we want to do COW on SS memory on `fork`.
+ *    SS memory is marked as readonly and subsequent sspop or sspush will lead to
+ *    load/store access fault. We need to decode instruction. If it's sspop or sspush
+ *    Page fault handler is invoked.
+*/
+int handle_load_access_fault(struct pt_regs *regs)
+{
+	ulong insn = get_instruction(regs->epc);
+
+	if (is_ss_load_insn(insn)) {
+		regs->cause = EXC_SS_ACCESS_PAGE_FAULT;
+		do_page_fault(regs);
+		return 0;
+	}
+
+	return 1;
+}
+
+/*
+ * If CFI enabled then following then store access fault can occur if
+ * -- ssstore (sspush/ssamoswap) happens on non-shadow stack memory
+ * -- regular store happens on shadow stack memory
+*/
+int handle_store_access_fault(struct pt_regs *regs)
+{
+	ulong insn = get_instruction(regs->epc);
+
+	/*
+	* if a shadow stack store insn, change cause to
+	* synthetic SS_ACCESS_PAGE_FAULT
+	*/
+	if (is_ss_store_insn(insn)) {
+		regs->cause = EXC_SS_ACCESS_PAGE_FAULT;
+		do_page_fault(regs);
+		return 0;
+	}
+
+	/*
+	* Reaching here means it was a regular store.
+	* A regular access fault anyways had been delivering SIGSEV
+	* A regular store to shadow stack anyways is also a SIGSEV
+	*/
+
+	return 1;
+}
+#endif
+
 #if defined(CONFIG_XIP_KERNEL) && defined(CONFIG_RISCV_ALTERNATIVE)
 #define __trap_section		__section(".xip.traps")
 #else
@@ -111,10 +258,36 @@ DO_ERROR_INFO(do_trap_insn_misaligned,
 	SIGBUS, BUS_ADRALN, "instruction address misaligned");
 DO_ERROR_INFO(do_trap_insn_fault,
 	SIGSEGV, SEGV_ACCERR, "instruction access fault");
+#ifdef CONFIG_RISCV_CFI
+/*
+ * If CFI enabled then following instructions leads to illegal instruction fault
+ * -- sscheckra: x1 and x5 mismatch
+ * -- ELP = 1, Any instruction other than lpcll will fault
+ * -- lpcll will fault if lower label don't match with LPLR.LL
+ * -- lpcml will fault if lower label don't match with LPLR.ML
+ * -- lpcul will fault if lower label don't match with LPLR.UL
+*/
+asmlinkage void __trap_section do_trap_insn_illegal(struct pt_regs *regs)
+{
+	if (!handle_illegal_instruction(regs))
+		return;
+	do_trap_error(regs, SIGILL, ILL_ILLOPC, regs->epc,
+		      "illegal instruction");
+}
+
+asmlinkage void __trap_section do_trap_load_fault(struct pt_regs *regs)
+{
+	if (!handle_load_access_fault(regs))
+		return;
+	do_trap_error(regs, SIGSEGV, SEGV_ACCERR, regs->epc,
+		      "load access fault");
+}
+#else
 DO_ERROR_INFO(do_trap_insn_illegal,
 	SIGILL, ILL_ILLOPC, "illegal instruction");
 DO_ERROR_INFO(do_trap_load_fault,
 	SIGSEGV, SEGV_ACCERR, "load access fault");
+#endif
 #ifndef CONFIG_RISCV_M_MODE
 DO_ERROR_INFO(do_trap_load_misaligned,
 	SIGBUS, BUS_ADRALN, "Oops - load address misaligned");
@@ -140,8 +313,18 @@ asmlinkage void __trap_section do_trap_store_misaligned(struct pt_regs *regs)
 		      "Oops - store (or AMO) address misaligned");
 }
 #endif
+#ifdef CONFIG_RISCV_CFI
+asmlinkage void __trap_section do_trap_store_fault(struct pt_regs *regs)
+{
+	if (!handle_store_access_fault(regs))
+		return;
+	do_trap_error(regs, SIGSEGV, SEGV_ACCERR, regs->epc,
+		      "store (or AMO) access fault");
+}
+#else
 DO_ERROR_INFO(do_trap_store_fault,
 	SIGSEGV, SEGV_ACCERR, "store (or AMO) access fault");
+#endif
 DO_ERROR_INFO(do_trap_ecall_u,
 	SIGILL, ILL_ILLTRP, "environment call from U-mode");
 DO_ERROR_INFO(do_trap_ecall_s,
