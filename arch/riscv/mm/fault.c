@@ -194,6 +194,16 @@ static inline bool access_error(unsigned long cause, struct vm_area_struct *vma)
 			return true;
 		}
 		break;
+		/*
+		 * If a ss access page fault. vma must have only VM_WRITE.
+		 * TODO: Should we've VM_READ too, technically page is readable.
+		 * page prot should be 0b010.
+		*/
+	case EXC_SS_ACCESS_PAGE_FAULT:
+		if (((vma->vm_flags & (VM_WRITE | VM_READ | VM_EXEC)) != VM_WRITE) ||
+		    (vma->vm_page_prot != 0b010)) {
+			return true;
+		}
 	default:
 		panic("%s: unhandled cause %lu", __func__, cause);
 	}
