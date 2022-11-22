@@ -18,6 +18,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/tlbflush.h>
+#include <asm/pgtable.h>
 
 #include "../kernel/head.h"
 
@@ -177,6 +178,8 @@ static inline void vmalloc_fault(struct pt_regs *regs, int code, unsigned long a
 
 static inline bool access_error(unsigned long cause, struct vm_area_struct *vma)
 {
+	unsigned long prot = 0, shdw_stk_mask = 0;
+
 	switch (cause) {
 	case EXC_INST_PAGE_FAULT:
 		if (!(vma->vm_flags & VM_EXEC)) {
@@ -200,10 +203,13 @@ static inline bool access_error(unsigned long cause, struct vm_area_struct *vma)
 		 * page prot should be 0b010.
 		*/
 	case EXC_SS_ACCESS_PAGE_FAULT:
+		prot = pgprot_val(vma->vm_page_prot);
+		shdw_stk_mask = pgprot_val(PAGE_SHADOWSTACK) | pgprot_val(PAGE_READ) | pgprot_val(PAGE_EXEC);
 		if (((vma->vm_flags & (VM_WRITE | VM_READ | VM_EXEC)) != VM_WRITE) ||
-		    (vma->vm_page_prot != 0b010)) {
+		    ((prot & shdw_stk_mask) != shdw_stk_mask)) {
 			return true;
 		}
+		break;
 	default:
 		panic("%s: unhandled cause %lu", __func__, cause);
 	}
