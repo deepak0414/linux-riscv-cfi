@@ -107,7 +107,7 @@ _save_context:
 	REG_S s3, TASK_TI_USER_CFI_STATUS(tp) /* save it back in thread_info structure */
 
 skip_fcfi_save:
-	andi s3, s2, CFISTATUS_UFCFIEN
+	andi s3, s2, CFISTATUS_UBCFIEN
 	beqz s3, skip_bcfi_save
 	csrr s3, CSR_SSP
 	REG_S s3, TASK_TI_USER_SSP(tp) /* save user ssp in thread_info */
