@@ -163,7 +163,7 @@ static inline int arch_parse_elf_property(u32 type, const void *data,
 	if (IS_ENABLED(CONFIG_COMPAT) && compat)
 		return 0;
 
-	if (type == GNU_PROPERTY_RISCV_FEATURE_1_AND) {
+	if ((type & GNU_PROPERTY_RISCV_FEATURE_1_AND) == GNU_PROPERTY_RISCV_FEATURE_1_AND) {
 		const u32 *p = data;
 
 		if (datasz != sizeof(*p))
