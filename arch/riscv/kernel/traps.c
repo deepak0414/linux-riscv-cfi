@@ -164,8 +164,10 @@ int handle_illegal_instruction(struct pt_regs *regs)
 	struct task_struct *task = current;
 
 	if (arch_supports_cfi()) {
+		pr_info("arch supports cfi and received illegal instr fault\n");
 		info = current_thread_info();
 		/* If fcfi enabled and  ELP = 1, suppress ELP (audit mode)  and resume */
+		pr_info("comm: %s, fcfi state: %d, elp: %d, insn: %lx\n", task->comm, info->user_cfi_state.fcfi_en, info->user_cfi_state.elp, insn);
 		if (info->user_cfi_state.fcfi_en && info->user_cfi_state.elp) {
 			pr_warn("cfi violation (elp): comm = %s, task = %p\n", task->comm, task);
 			info->user_cfi_state.elp = 0;

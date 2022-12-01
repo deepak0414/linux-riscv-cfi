@@ -216,6 +216,60 @@ static inline bool access_error(unsigned long cause, struct vm_area_struct *vma)
 	return false;
 }
 
+
+unsigned int opcode_break = 0x81C04073;
+char app_name_fault_info[] = "shadowstack";
+int pid_fault_info = -1;
+#define PRINT_LOAD_PF_INFO 1
+#define PRINT_STORE_PF_INFO 2
+#define PRINT_INSTR_PF_INFO 4
+unsigned long pf_cause_filter = (PRINT_LOAD_PF_INFO | PRINT_STORE_PF_INFO);
+
+void dump_fault_info(struct pt_regs *regs, struct vm_area_struct *vma, unsigned long cause)
+{
+	struct task_struct *tsk;
+	int print_fault_info = 0, task_match = 0, pid_match = 0, cause_filter_match = 0;
+	int insn = 0;
+	int *epc_ptr = NULL;
+
+	tsk = current;
+
+	if (!memcmp(tsk->comm, app_name_fault_info, sizeof(app_name_fault_info))) {
+		task_match = 1;
+	}
+
+	if ((pid_fault_info != -1) &&
+	    (pid_fault_info == tsk->pid)) {
+		pid_match = 1;
+	}
+
+	switch (cause) {
+		case EXC_LOAD_PAGE_FAULT:
+			cause_filter_match = (pf_cause_filter & PRINT_LOAD_PF_INFO)?1:0;
+			break;
+		case EXC_STORE_PAGE_FAULT:
+			cause_filter_match = (pf_cause_filter & PRINT_STORE_PF_INFO)?1:0;
+			break;
+		case EXC_INST_PAGE_FAULT:
+			cause_filter_match = (pf_cause_filter & PRINT_INSTR_PF_INFO)?1:0;
+			break;
+		default:
+			cause_filter_match = 0;
+			break;
+	}
+	print_fault_info = (cause_filter_match  & (pid_match | task_match));
+
+	if (print_fault_info) {
+		epc_ptr = (int *) regs->epc;
+		insn = 0;
+		__enable_user_access();
+		insn = *epc_ptr;
+		__disable_user_access();
+		printk("page_fault: comm %s, pid %d, cause %ld, addr %lx, vma flags %lx, prot bits %lx\n", 
+			tsk->comm, tsk->pid, cause, regs->badaddr, vma->vm_flags, vma->vm_page_prot.pgprot);
+	}
+}
+
 /*
  * This routine handles page faults.  It determines the address and the
  * problem, and then passes it off to one of the appropriate routines.
@@ -227,8 +281,10 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 	struct mm_struct *mm;
 	unsigned long addr, cause;
 	unsigned int flags = FAULT_FLAG_DEFAULT;
+	int insn;
 	int code = SEGV_MAPERR;
 	vm_fault_t fault;
+	int *epc_ptr = NULL;
 
 	cause = regs->cause;
 	addr = regs->badaddr;
@@ -312,10 +368,7 @@ retry:
 		return;
 	}
 
-	/* temp hack to test changes of PROT_SHADOWSTACK */
-	if (arch_supports_shadow_stack()) {
-		csr_write(CSR_SCFISTATUS, CFISTATUS_UBCFIEN);
-	}
+	dump_fault_info(regs, vma, cause);
 
 	if (likely(vma->vm_start <= addr))
 		goto good_area;
