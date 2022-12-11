@@ -39,7 +39,8 @@ void asm_offsets(void)
 	OFFSET(TASK_TI_USER_SP, task_struct, thread_info.user_sp);
 #ifdef	CONFIG_RISCV_CFI
 	OFFSET(TASK_TI_USER_CFI_STATUS, task_struct, thread_info.user_cfi_state);
-	OFFSET(TASK_TI_USER_SSP, task_struct, thread_info.user_shdw_stk);
+	OFFSET(TASK_TI_USER_LPLR, task_struct, thread_info.user_cfi_state.lp_label);
+	OFFSET(TASK_TI_USER_SSP, task_struct, thread_info.user_cfi_state.user_shdw_stk);
 #endif
 
 	OFFSET(TASK_THREAD_F0,  task_struct, thread.fstate.f[0]);

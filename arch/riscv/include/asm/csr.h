@@ -18,20 +18,30 @@
 #define SR_MPP		_AC(0x00001800, UL) /* Previously Machine */
 #define SR_SUM		_AC(0x00040000, UL) /* Supervisor User Memory Access */
 
-/* CFI CSR bits */
-#define CFISTATUS_MFCFIEN   _AC(0x00000001, UL)
-#define CFISTATUS_MBCFIEN   _AC(0x00000002, UL)
-#define CFISTATUS_SFCFIEN   _AC(0x00000004, UL)
-#define CFISTATUS_SBCFIEN   _AC(0x00000008, UL)
-#define CFISTATUS_UFCFIEN   _AC(0x00000010, UL)
-#define CFISTATUS_UBCFIEN   _AC(0x00000020, UL)
-#define CFISTATUS_MPELP     _AC(0x00000040, UL)
-#define CFISTATUS_SPELP     _AC(0x00000080, UL)
-#define CFISTATUS_M_MASK    (CFISTATUS_MFCFIEN | CFISTATUS_MBCFIEN | CFISTATUS_SFCFIEN | \
-                             CFISTATUS_SBCFIEN | CFISTATUS_UFCFIEN | CFISTATUS_UBCFIEN | \
-                             CFISTATUS_MPELP | CFISTATUS_SPELP)
-#define CFISTATUS_S_MASK    (CFISTATUS_SPELP | CFISTATUS_SFCFIEN | CFISTATUS_SBCFIEN | \
-                             CFISTATUS_UFCFIEN | CFISTATUS_UBCFIEN)
+#ifdef CONFIG_RISCV_CFI
+/* CFI SR bits */
+#define SR_MFCFIEN   _AC(0x02000000, UL)
+#define SR_SFCFIEN   _AC(0x01000000, UL)
+#define SR_SBCFIEN   _AC(0x08000000, UL)
+#define SR_UFCFIEN   _AC(0x00800000, UL)
+#define SR_UBCFIEN   _AC(0x04000000, UL)
+#define SR_MPELP     _AC(0x20000000, UL)
+#define SR_SPELP     _AC(0x10000000, UL)
+#ifdef CONFIG_RISCV_M_MODE
+#define SR_ELP	     SR_MPELP
+#else
+#define SR_ELP	     SR_SPELP
+#endif
+
+#ifdef CONFIG_RISCV_M_MODE
+#define CFISTATUS_MASK    (SR_MFCFIEN | SR_MBCFIEN | SR_SFCFIEN | \
+                           SR_SBCFIEN | SR_UFCFIEN | SR_UBCFIEN | \
+                           SR_MPELP | SR_SPELP)
+#else
+#define CFISTATUS_MASK    (SR_PELP | SR_SFCFIEN | SR_SBCFIEN | \
+                           SR_UFCFIEN | SR_UBCFIEN)
+#endif
+#endif
 
 #define SR_FS		_AC(0x00006000, UL) /* Floating-point Status */
 #define SR_FS_OFF	_AC(0x00000000, UL)
@@ -272,7 +282,6 @@
 #define CSR_STVAL		0x143
 #define CSR_SIP			0x144
 #define CSR_SATP		0x180
-#define CSR_SCFISTATUS		0x10B
 
 #define CSR_STIMECMP		0x14D
 #define CSR_STIMECMPH		0x15D
@@ -288,7 +297,6 @@
 #define CSR_VSATP		0x280
 #define CSR_VSTIMECMP		0x24D
 #define CSR_VSTIMECMPH		0x25D
-#define CSR_VCFISTATUS		0x20B
 
 #define CSR_HSTATUS		0x600
 #define CSR_HEDELEG		0x602
@@ -324,7 +332,6 @@
 #define CSR_MARCHID		0xf12
 #define CSR_MIMPID		0xf13
 #define CSR_MHARTID		0xf14
-#define CSR_MCFISTATUS          0x30B
 
 #ifdef CONFIG_RISCV_M_MODE
 # define CSR_STATUS	CSR_MSTATUS
@@ -343,9 +350,6 @@
 # define RV_IRQ_SOFT		IRQ_M_SOFT
 # define RV_IRQ_TIMER	IRQ_M_TIMER
 # define RV_IRQ_EXT		IRQ_M_EXT
-#ifdef CONFIG_RISCV_CFI
-#define CSR_CFISTATUS   CSR_MCFISTATUS
-#endif
 #else /* CONFIG_RISCV_M_MODE */
 # define CSR_STATUS	CSR_SSTATUS
 # define CSR_IE		CSR_SIE
@@ -355,10 +359,6 @@
 # define CSR_CAUSE	CSR_SCAUSE
 # define CSR_TVAL	CSR_STVAL
 # define CSR_IP		CSR_SIP
-#ifdef CONFIG_RISCV_CFI
-# define CSR_CFISTATUS	CSR_SCFISTATUS
-#endif
-
 
 # define SR_IE		SR_SIE
 # define SR_PIE		SR_SPIE

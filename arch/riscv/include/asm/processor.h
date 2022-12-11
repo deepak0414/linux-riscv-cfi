@@ -49,20 +49,11 @@ struct thread_struct {
 
 #define FCFI_LABEL_SIZE (FCFI_LOWER_LABEL_SIZE + FCFI_MID_LABEL_SIZE + FCFI_UP_LABEL_SIZE)
 struct cfi_status {
-	unsigned long rsvd1 : 4;
-	unsigned long fcfi_en : 1;
-	unsigned long bcfi_en : 1;
-#ifdef CONFIG_RISCV_M_MODE
-	unsigned long elp : 1;
-	unsigned long elp_s : 1;
-#else
-	unsigned long elp_m : 1;
-	unsigned long elp : 1;
-#endif
-
-	unsigned long rsvd2 : 24;
-	unsigned long lp_label : FCFI_LABEL_SIZE;
-	unsigned long rsvd3 : ((sizeof(unsigned long)*8) - 32 - FCFI_LABEL_SIZE);
+	unsigned int ufcfi_en : 1;
+	unsigned int ubcfi_en : 1;
+	unsigned int rsvd1 : 30;
+	unsigned int lp_label;
+	long user_shdw_stk;  /* User shadow stack pointer */
 };
 #endif
 /* Whitelist the fstate from the task_struct for hardened usercopy */

@@ -167,10 +167,12 @@ int handle_illegal_instruction(struct pt_regs *regs)
 		pr_info("arch supports cfi and received illegal instr fault\n");
 		info = current_thread_info();
 		/* If fcfi enabled and  ELP = 1, suppress ELP (audit mode)  and resume */
-		pr_info("comm: %s, fcfi state: %d, elp: %d, insn: %lx\n", task->comm, info->user_cfi_state.fcfi_en, info->user_cfi_state.elp, insn);
-		if (info->user_cfi_state.fcfi_en && info->user_cfi_state.elp) {
+		pr_info("comm: %s, fcfi state: %d, elp: %d, insn: %lx, lplr: %x, epc %lx \n",
+			task->comm, info->user_cfi_state.ufcfi_en, (regs->status & SR_ELP)?1:0 , insn,
+			info->user_cfi_state.lp_label, regs->epc);
+		if (info->user_cfi_state.ufcfi_en && (regs->status & SR_ELP)) {
 			pr_warn("cfi violation (elp): comm = %s, task = %p\n", task->comm, task);
-			info->user_cfi_state.elp = 0;
+			regs->status &= ~(SR_ELP);
 			return 0;
 		}
 		/* if faulting opcode is sscheckra/lpcll/lpcml/lpcll, advance PC and resume */

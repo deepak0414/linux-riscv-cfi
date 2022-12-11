@@ -136,6 +136,14 @@ void start_thread(struct pt_regs *regs, unsigned long pc,
 	else
 		regs->status |= SR_UXL_64;
 #endif
+#ifdef CONFIG_RISCV_CFI
+	if (current_thread_info()->user_cfi_state.ufcfi_en) {
+		regs->status |= SR_UFCFIEN;
+	}
+	if (current_thread_info()->user_cfi_state.ubcfi_en) {
+		regs->status |= SR_UBCFIEN;
+	}
+#endif
 }
 
 void flush_thread(void)
@@ -225,17 +233,16 @@ int arch_elf_setup_cfi_state(const struct arch_elf_state *state)
 		info = current_thread_info();
 		/* setup back cfi state */
 		if (state->flags & RISCV_ELF_BCFI) {
-			info->user_cfi_state.bcfi_en = 1;
+			info->user_cfi_state.ubcfi_en = 1;
 			ret = allocate_shadow_stack(&shadow_stack_top);
 			if (!shadow_stack_top)
 				return ret;
-			info->user_shdw_stk = shadow_stack_top;
+			info->user_cfi_state.user_shdw_stk = shadow_stack_top;
 		}
 
 		/* setup forward cfi state */
 		if (state->flags & RISCV_ELF_FCFI) {
-			info->user_cfi_state.fcfi_en = 1;
-			info->user_cfi_state.elp = 0;
+			info->user_cfi_state.ufcfi_en = 1;
 			info->user_cfi_state.lp_label = 0;
 		}
 	}
