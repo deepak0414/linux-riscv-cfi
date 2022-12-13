@@ -71,8 +71,7 @@ struct thread_info {
 	 * Keeping cfi state in thread_info makes more sense instead of trap frame on kernel stack because user cfi state can't nest.
 	 * Whenever we enable supervisor cfi state, we can revisit below logic.
 	*/
-	struct cfi_status 	user_cfi_state; /* state of user cfi state. note this includes LPLR and SSP as well  */
-	long			user_shdw_stk;  /* User shadow stack pointer */
+	struct cfi_status 	user_cfi_state; /* state of user cfi state. note this includes LPLR and SSP as well */
 #endif
 	int			cpu;
 };
