@@ -204,7 +204,7 @@ static inline bool access_error(unsigned long cause, struct vm_area_struct *vma)
 		*/
 	case EXC_SS_ACCESS_PAGE_FAULT:
 		prot = pgprot_val(vma->vm_page_prot);
-		shdw_stk_mask = pgprot_val(PAGE_SHADOWSTACK) | pgprot_val(PAGE_READ) | pgprot_val(PAGE_EXEC);
+		shdw_stk_mask = pgprot_val(PAGE_SHADOWSTACK);
 		if (((vma->vm_flags & (VM_WRITE | VM_READ | VM_EXEC)) != VM_WRITE) ||
 		    ((prot & shdw_stk_mask) != shdw_stk_mask)) {
 			return true;
@@ -223,7 +223,8 @@ int pid_fault_info = -1;
 #define PRINT_LOAD_PF_INFO 1
 #define PRINT_STORE_PF_INFO 2
 #define PRINT_INSTR_PF_INFO 4
-unsigned long pf_cause_filter = (PRINT_LOAD_PF_INFO | PRINT_STORE_PF_INFO);
+#define PRINT_SSACCESS_PF_INFO 8
+unsigned long pf_cause_filter = PRINT_SSACCESS_PF_INFO;
 
 void dump_fault_info(struct pt_regs *regs, struct vm_area_struct *vma, unsigned long cause)
 {
@@ -252,6 +253,9 @@ void dump_fault_info(struct pt_regs *regs, struct vm_area_struct *vma, unsigned 
 			break;
 		case EXC_INST_PAGE_FAULT:
 			cause_filter_match = (pf_cause_filter & PRINT_INSTR_PF_INFO)?1:0;
+			break;
+		case EXC_SS_ACCESS_PAGE_FAULT:
+			cause_filter_match = (pf_cause_filter & PRINT_SSACCESS_PF_INFO)?1:0;
 			break;
 		default:
 			cause_filter_match = 0;
