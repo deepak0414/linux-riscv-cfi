@@ -51,7 +51,9 @@ struct thread_struct {
 struct cfi_status {
 	unsigned int ufcfi_en : 1;
 	unsigned int ubcfi_en : 1;
-	unsigned int rsvd1 : 30;
+	unsigned int ufcfi_locked : 1;
+	unsigned int ubcfi_locked : 1;
+	unsigned int rsvd1 : 28;
 	unsigned int lp_label;
 	long user_shdw_stk;  /* User shadow stack pointer */
 };
