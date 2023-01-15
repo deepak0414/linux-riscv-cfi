@@ -30,6 +30,7 @@ void shstk_release(struct task_struct *tsk);
 void set_shstk_base(struct task_struct *task, unsigned long shstk_addr, unsigned long size);
 void set_active_shstk(struct task_struct *task, unsigned long shstk_addr);
 bool is_shstk_enabled(struct task_struct *task);
+unsigned long get_active_shstk(struct task_struct *task);
 
 #define PR_SHADOW_STACK_SUPPORTED_STATUS_MASK (PR_SHADOW_STACK_ENABLE)
 
@@ -60,6 +61,11 @@ static inline void set_active_shstk(struct task_struct *task, unsigned long shst
 static inline bool is_shstk_enabled(struct task_struct *task)
 {
 	return false;
+}
+
+static inline unsigned long get_active_shstk(struct task_struct *task)
+{
+	return 0;
 }
 
 #endif /* CONFIG_RISCV_USER_CFI */
