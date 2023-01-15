@@ -103,6 +103,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame;
 	struct task_struct *task;
+	struct thread_info *info = NULL;
 	sigset_t set;
 
 	/* Always make any pending restarted system calls return -EINTR */
@@ -123,6 +124,25 @@ SYSCALL_DEFINE0(rt_sigreturn)
 
 	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
+
+#if defined(CONFIG_USER_SHADOW_STACK)
+	/*
+	* TODO: Restore shadow stack as a form of token stored on shadow stack itself as a safe way to restore.
+	* A token on shadow gives following properties
+	*	- Safe save and restore for shadow stack switching. Any save of shadow stack
+		  must have had saved a token on shadow stack. Similarly any restore of shadow
+		  stack must check the token before restore. Since writing to shadow stack with
+		  address of shadow stack itself is not easily allowed. A restore without a save
+		  is quite difficult for an attacker to perform.
+
+		- A natural break. A token in shadow stack provides a natural break in shadow stack
+		  So a single linear range can be bucketed into different shadow stack segments. Any
+		  sspop; sscheckra will detect the condition and fault to kernel.
+	*/
+	info = current_thread_info();
+	if (info->user_cfi_state.ubcfi_en && __copy_from_user(&info->user_cfi_state.user_shdw_stk, &frame->uc.uc_ss_ptr, sizeof (unsigned long)))
+		goto badframe;
+#endif
 
 	regs->cause = -1UL;
 
@@ -180,6 +200,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
+	struct thread_info *info = NULL;
 	long err = 0;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
@@ -191,6 +212,24 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	/* Create the ucontext. */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(NULL, &frame->uc.uc_link);
+#if defined(CONFIG_USER_SHADOW_STACK)
+	/*
+	* TODO: Save a pointer to shadow stack itself on shadow stack as a form of token.
+	* A token on shadow gives following properties
+	*	- Safe save and restore for shadow stack switching. Any save of shadow stack
+		  must have had saved a token on shadow stack. Similarly any restore of shadow
+		  stack must check the token before restore. Since writing to shadow stack with
+		  address of shadow stack itself is not easily allowed. A restore without a save
+		  is quite difficult for an attacker to perform.
+
+		- A natural break. A token in shadow stack provides a natural break in shadow stack
+		  So a single linear range can be bucketed into different shadow stack segments. Any
+		  sspop; sscheckra will detect the condition and fault to kernel.
+	*/
+	info = current_thread_info();
+	if (info->user_cfi_state.ubcfi_en)
+		err |= __put_user(info->user_cfi_state.user_shdw_stk, &frame->uc.uc_ss_ptr);
+#endif
 	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
 	err |= setup_sigcontext(frame, regs);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
@@ -201,6 +240,11 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 #ifdef CONFIG_MMU
 	regs->ra = (unsigned long)VDSO_SYMBOL(
 		current->mm->context.vdso, rt_sigreturn);
+#if defined(CONFIG_USER_SHADOW_STACK)
+	/* if bcfi is enabled x1 (ra) and x5 (t0) must match */
+	if (info->user_cfi_state.ubcfi_en)
+		regs->t0 = regs->ra;
+#endif
 #else
 	/*
 	 * For the nommu case we don't have a VDSO.  Instead we push two
