@@ -65,6 +65,10 @@ struct thread_info {
 	 */
 	long			kernel_sp;	/* Kernel stack pointer */
 	long			user_sp;	/* User stack pointer */
+#if defined(CONFIG_USER_SHADOW_STACK) && defined(CONFIG_USER_INDIRECT_BR_LP)
+	/* cfi_state only if config is defined */
+	struct cfi_status       user_cfi_state; /* state of user cfi state. note this includes LPLR and SSP as well */
+#endif
 	int			cpu;
 };
 

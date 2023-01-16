@@ -41,6 +41,17 @@ struct thread_struct {
 	unsigned long bad_cause;
 };
 
+#if defined(CONFIG_USER_SHADOW_STACK) && defined(CONFIG_USER_INDIRECT_BR_LP)
+struct cfi_status {
+       unsigned int ufcfi_en : 1; /* Enable for forward cfi. Note that ELP goes in sstatus */
+       unsigned int ubcfi_en : 1; /* Enable for backward cfi. */
+       unsigned int rsvd1 : 30;
+       unsigned int lp_label; /* saved label value (25bit) */
+       long user_shdw_stk; /* Current user shadow stack pointer */
+       long shdw_stk_base; /* Base address of shadow stack */
+};
+#endif
+
 /* Whitelist the fstate from the task_struct for hardened usercopy */
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
 						unsigned long *size)
