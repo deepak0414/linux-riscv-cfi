@@ -18,6 +18,29 @@
 #define SR_MPP		_AC(0x00001800, UL) /* Previously Machine */
 #define SR_SUM		_AC(0x00040000, UL) /* Supervisor User Memory Access */
 
+/* zisslpcfi status bits */
+#define SR_MFCFIEN	_AC(0x02000000, UL)
+#define SR_SFCFIEN	_AC(0x01000000, UL)
+#define SR_SBCFIEN	_AC(0x08000000, UL)
+#define SR_UFCFIEN	_AC(0x00800000, UL)
+#define SR_UBCFIEN	_AC(0x04000000, UL)
+#define SR_MPELP	_AC(0x20000000, UL)
+#define SR_SPELP	_AC(0x10000000, UL)
+#ifdef CONFIG_RISCV_M_MODE
+#define SR_ELP		SR_MPELP
+#else
+#define SR_ELP		SR_SPELP
+#endif
+
+#ifdef CONFIG_RISCV_M_MODE
+#define CFISTATUS_MASK	(SR_MFCFIEN | SR_MBCFIEN | SR_SFCFIEN | \
+			SR_SBCFIEN | SR_UFCFIEN | SR_UBCFIEN | \
+			SR_MPELP | SR_SPELP)
+#else
+#define CFISTATUS_MASK	(SR_PELP | SR_SFCFIEN | SR_SBCFIEN | \
+			SR_UFCFIEN | SR_UBCFIEN)
+#endif
+
 #define SR_FS		_AC(0x00006000, UL) /* Floating-point Status */
 #define SR_FS_OFF	_AC(0x00000000, UL)
 #define SR_FS_INITIAL	_AC(0x00002000, UL)
@@ -167,6 +190,14 @@
 #define ENVCFG_CBIE_FLUSH		_AC(0x1, UL)
 #define ENVCFG_CBIE_INV			_AC(0x3, UL)
 #define ENVCFG_FIOM			_AC(0x1, UL)
+
+/*
+* zisslpcfi user mode csrs
+* CSR_LPLR is a label register which holds compiler generated label that must be checked on target.
+* CSR_SSP holds current shadow stack pointer.
+*/
+#define CSR_LPLR                0x006
+#define CSR_SSP                 0x020
 
 /* symbolic CSR names: */
 #define CSR_CYCLE		0xc00
