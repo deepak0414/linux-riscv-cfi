@@ -73,6 +73,31 @@ _save_context:
 	REG_S x30, PT_T5(sp)
 	REG_S x31, PT_T6(sp)
 
+#if	defined(CONFIG_USER_SHADOW_STACK) || defined(CONFIG_USER_INDIRECT_BR_LP)
+	/*
+	* If U --> S, CSR_SCRATCH should be holding U TP
+	* If S --> S, CSR_SCRATCH should be holding S TP
+	* s2 == tp means, previous mode was S
+	* else previous mode U
+	* we need to save cfi status only when previous mode was U
+	*/
+	csrr s2, CSR_SCRATCH
+	xor s2, s2, tp
+	beqz s2, skip_bcfi_save
+	/* load cfi status word */
+	lw s2, TASK_TI_USER_CFI_STATUS(tp)
+	andi s3, s2, 1
+	beqz s3, skip_fcfi_save
+	/* fcfi is enabled, capture ELP and LPLR state and record it */
+	csrr s3, CSR_LPLR /* record label register */
+	sw s3, TASK_TI_USER_LPLR(tp) /* save it back in thread_info structure */
+skip_fcfi_save:
+	andi s3, s2, 2
+	beqz s3, skip_bcfi_save
+	csrr s3, CSR_SSP
+	REG_S s3, TASK_TI_USER_SSP(tp) /* save user ssp in thread_info */
+skip_bcfi_save:
+#endif
 	/*
 	 * Disable user-mode memory access as it should only be set in the
 	 * actual user copy routines.
@@ -282,6 +307,21 @@ resume_userspace:
 	 * structures again.
 	 */
 	csrw CSR_SCRATCH, tp
+
+#if	defined(CONFIG_USER_SHADOW_STACK) || defined(CONFIG_USER_INDIRECT_BR_LP)
+	lw s2, TASK_TI_USER_CFI_STATUS(tp)
+	andi s3, s2, 1
+	beqz s3, skip_fcfi_resume
+	xor s3, s3, s3
+	lw s3, TASK_TI_USER_LPLR(tp)
+	csrw CSR_LPLR, s3
+skip_fcfi_resume:
+	andi s3, s2, 2
+	beqz s3, skip_bcfi_resume
+	REG_L s3, TASK_TI_USER_SSP(tp) /* save user ssp in thread_info */
+	csrw CSR_SSP, s3
+skip_bcfi_resume:
+#endif
 
 restore_all:
 #ifdef CONFIG_TRACE_IRQFLAGS
