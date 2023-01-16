@@ -49,6 +49,25 @@ SYM_CODE_START(handle_exception)
 	REG_S x5,  PT_T0(sp)
 	save_from_x6_to_x31
 
+#ifdef CONFIG_RISCV_USER_CFI
+	/*
+	* If U --> S, CSR_SCRATCH should be holding U TP
+	* If S --> S, CSR_SCRATCH should be holding S TP
+	* s2 == tp means, previous mode was S
+	* else previous mode U
+	* we need to save cfi status only when previous mode was U
+	*/
+	csrr s2, CSR_SCRATCH
+	xor s2, s2, tp
+	beqz s2, skip_bcfi_save
+	/* load cfi status word */
+	lw s3, TASK_TI_CFI_STATUS(tp)
+	andi s3, s3, 1
+	beqz s3, skip_bcfi_save
+	csrr s3, CSR_SSP
+	REG_S s3, TASK_TI_USER_SSP(tp) /* save user ssp in thread_info */
+skip_bcfi_save:
+#endif
 	/*
 	 * Disable user-mode memory access as it should only be set in the
 	 * actual user copy routines.
@@ -142,6 +161,15 @@ SYM_CODE_START_NOALIGN(ret_from_exception)
 	 */
 	csrw CSR_SCRATCH, tp
 1:
+#ifdef CONFIG_RISCV_USER_CFI
+	lw s3, TASK_TI_CFI_STATUS(tp)
+	andi s3, s3, 1
+	beqz s3, skip_bcfi_resume
+	REG_L s3, TASK_TI_USER_SSP(tp) /* restore user ssp from thread struct */
+	csrw CSR_SSP, s3
+skip_bcfi_resume:
+#endif
+
 	REG_L a0, PT_STATUS(sp)
 	/*
 	 * The current load reservation is effectively part of the processor's
