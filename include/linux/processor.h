@@ -59,4 +59,17 @@ do {								\
 
 #endif
 
+#ifndef CONFIG_SHADOW_STACK
+static inline bool arch_supports_shadow_stack(void)
+{
+	return false;
+}
+#endif
+
+#ifndef CONFIG_USER_INDIRECT_BR_LP
+static inline bool arch_supports_indirect_br_lp_instr(void)
+{
+	return false;
+}
+#endif
 #endif /* _LINUX_PROCESSOR_H */
