@@ -97,7 +97,7 @@ static inline bool arch_supports_shadow_stack(void)
 	return __riscv_isa_extension_available(NULL, RISCV_ISA_EXT_ZCFI);
 }
 #endif
-#ifndef CONFIG_USER_INDIRECT_BR_LP
+#ifdef CONFIG_USER_INDIRECT_BR_LP
 static inline bool arch_supports_indirect_br_lp_instr(void)
 {
 	return __riscv_isa_extension_available(NULL, RISCV_ISA_EXT_ZCFI);
