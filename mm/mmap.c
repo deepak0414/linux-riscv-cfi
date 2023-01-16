@@ -46,6 +46,7 @@
 #include <linux/pkeys.h>
 #include <linux/oom.h>
 #include <linux/sched/mm.h>
+#include <linux/processor.h>
 
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
@@ -1252,6 +1253,9 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 	if (!len)
 		return -EINVAL;
 
+	/* If PROT_SHADOWSTACK is specified and arch doesn't support it, return -EINVAL */
+	if ((prot & PROT_SHADOWSTACK) && !arch_supports_shadow_stack())
+		return -EINVAL;
 	/*
 	 * Does the application expect PROT_READ to imply PROT_EXEC?
 	 *

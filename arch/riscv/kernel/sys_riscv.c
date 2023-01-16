@@ -18,6 +18,30 @@ static long riscv_sys_mmap(unsigned long addr, unsigned long len,
 	if (unlikely(offset & (~PAGE_MASK >> page_shift_offset)))
 		return -EINVAL;
 
+	/*
+	* If only PROT_WRITE is specified then extend that to PROT_READ
+	* protection_map[VM_WRITE] is now going to select shadow stack encodings.
+	* So specifying PROT_WRITE actually should select protection_map [VM_WRITE | VM_READ]
+	* If user wants to create shadow stack then they should specify PROT_SHADOWSTACK
+	* protection
+	*/
+	if (unlikely((prot & PROT_WRITE) && !(prot & PROT_READ))) {
+		prot |= PROT_READ;
+	}
+
+	/*
+	* PROT_SHADOWSTACK is new protection flag. If specified with other like PROT_WRITE or PROT_READ
+	* PROT_SHADOWSTACK takes precedence. We can do either of following
+	*   - ensure no other protection flags are specified along with it and return EINVAL
+	*   OR
+	*   - ensure we clear other protection flags.
+	* Choosing to follow former, if any other bit is set in prot, we return EINVAL
+	* Other architectures can treat different combinations for PROT_SHADOWSTACK
+	*/
+	if (unlikely((prot & PROT_SHADOWSTACK) && (prot & ~PROT_SHADOWSTACK))) {
+	        return -EINVAL;
+	}
+
 	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
 			       offset >> (PAGE_SHIFT - page_shift_offset));
 }

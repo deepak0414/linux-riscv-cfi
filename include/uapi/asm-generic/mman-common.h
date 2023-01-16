@@ -11,6 +11,12 @@
 #define PROT_WRITE	0x2		/* page can be written */
 #define PROT_EXEC	0x4		/* page can be executed */
 #define PROT_SEM	0x8		/* page may be used for atomic ops */
+/*
+* Major architectures (x86, aarch64, riscv) have shadow stack now. Each architecture can
+* choose to implement different PTE encodings. x86 encodings are PTE.R=0, PTE.W=1, PTE.D=1
+* riscv encodings are PTE.R=0, PTE.W=1. Aarch64 encodings are not published yet
+*/
+#define PROT_SHADOWSTACK  0x40
 /*			0x10		   reserved for arch-specific use */
 /*			0x20		   reserved for arch-specific use */
 #define PROT_NONE	0x0		/* page can not be accessed */
