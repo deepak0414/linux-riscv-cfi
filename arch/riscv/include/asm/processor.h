@@ -12,6 +12,7 @@
 #include <vdso/processor.h>
 
 #include <asm/ptrace.h>
+#include <asm/hwcap.h>
 
 #ifdef CONFIG_64BIT
 #define DEFAULT_MAP_WINDOW	(UL(1) << (MMAP_VA_BITS - 1))
@@ -134,6 +135,18 @@ extern long riscv_v_vstate_ctrl_set_current(unsigned long arg);
 extern long riscv_v_vstate_ctrl_get_current(void);
 #endif /* CONFIG_RISCV_ISA_V */
 
+#ifdef CONFIG_USER_SHADOW_STACK
+static inline bool arch_supports_shadow_stack(void)
+{
+	return riscv_isa_extension_available(NULL, ZCFI);
+}
+#endif
+#ifdef CONFIG_USER_INDIRECT_BR_LP
+static inline bool arch_supports_indirect_br_lp_instr(void)
+{
+	return riscv_isa_extension_available(NULL, ZCFI);
+}
+#endif
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_RISCV_PROCESSOR_H */
