@@ -468,4 +468,10 @@ typedef struct elf64_note {
 /* Bits for GNU_PROPERTY_AARCH64_FEATURE_1_BTI */
 #define GNU_PROPERTY_AARCH64_FEATURE_1_BTI	(1U << 0)
 
+/* .note.gnu.property types for RISCV: */
+/* Bits for GNU_PROPERTY_RISCV_FEATURE_1_FCFI/BCFI */
+#define GNU_PROPERTY_RISCV_FEATURE_1_AND  0xc0000000
+#define GNU_PROPERTY_RISCV_FEATURE_1_FCFI (1u << 0)
+#define GNU_PROPERTY_RISCV_FEATURE_1_BCFI (1u << 1)
+
 #endif /* _UAPI_LINUX_ELF_H */
