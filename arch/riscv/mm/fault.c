@@ -18,6 +18,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/tlbflush.h>
+#include <asm/pgtable.h>
 
 #include "../kernel/head.h"
 
@@ -177,6 +178,7 @@ static inline void vmalloc_fault(struct pt_regs *regs, int code, unsigned long a
 
 static inline bool access_error(unsigned long cause, struct vm_area_struct *vma)
 {
+	unsigned long prot = 0, shdw_stk_mask = 0;
 	switch (cause) {
 	case EXC_INST_PAGE_FAULT:
 		if (!(vma->vm_flags & VM_EXEC)) {
@@ -194,6 +196,20 @@ static inline bool access_error(unsigned long cause, struct vm_area_struct *vma)
 			return true;
 		}
 		break;
+#ifdef CONFIG_USER_SHADOW_STACK
+	/*
+	 * If a ss access page fault. vma must have only VM_WRITE.
+	 * and page prot much match to PAGE_SHADOWSTACK.
+	 */
+	case EXC_SS_ACCESS_PAGE_FAULT:
+		prot = pgprot_val(vma->vm_page_prot);
+		shdw_stk_mask = pgprot_val(PAGE_SHADOWSTACK);
+		if (((vma->vm_flags & (VM_WRITE | VM_READ | VM_EXEC)) != VM_WRITE) ||
+		   ((prot & shdw_stk_mask) != shdw_stk_mask)) {
+			return true;
+		}
+		break;
+#endif
 	default:
 		panic("%s: unhandled cause %lu", __func__, cause);
 	}
@@ -274,7 +290,12 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
 
-	if (cause == EXC_STORE_PAGE_FAULT)
+	if (cause == EXC_STORE_PAGE_FAULT
+#ifdef CONFIG_USER_SHADOW_STACK
+	   || cause == EXC_SS_ACCESS_PAGE_FAULT
+	   /* if config says shadow stack and cause is ss access then indicate a write */
+#endif
+	   )
 		flags |= FAULT_FLAG_WRITE;
 	else if (cause == EXC_INST_PAGE_FAULT)
 		flags |= FAULT_FLAG_INSTRUCTION;
