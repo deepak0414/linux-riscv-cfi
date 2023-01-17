@@ -97,6 +97,10 @@ static void do_trap_error(struct pt_regs *regs, int signo, int code,
 /* Zisslpcfi instructions encodings */
 #define SS_PUSH_POP 0x81C04073
 #define SS_AMOSWAP  0x82004073
+#define SS_CHECKRA  0x8A12C073
+#define LP_C_LL     0x83004073
+#define LP_C_ML     0x86804073
+#define LP_C_UL     0x8B804073
 
 bool is_ss_load_store_insn(unsigned long insn)
 {
@@ -110,6 +114,59 @@ bool is_ss_load_store_insn(unsigned long insn)
 		return true;
 
 	return false;
+}
+
+bool is_cfi_violation_insn(unsigned long insn)
+{
+	struct task_struct *task = current;
+	bool ss_exist = false, lp_exist = false;
+
+	ss_exist = arch_supports_shadow_stack();
+	lp_exist = arch_supports_indirect_br_lp_instr();
+
+	if (ss_exist && (insn == SS_CHECKRA)) {
+		pr_warn("cfi violation (sschkra): comm = %s, task = %p\n", task->comm, task);
+		return true;
+	}
+	if (lp_exist && ((insn & LP_C_LL) == LP_C_LL)) {
+		pr_warn("cfi violation (lpcll): comm = %s, task = %p\n", task->comm, task);
+		return true;
+	}
+	if (lp_exist && ((insn & LP_C_ML) == LP_C_ML)) {
+		pr_warn("cfi violation (lpcml): comm = %s, task = %p\n", task->comm, task);
+		return true;
+	}
+	if (lp_exist && ((insn & LP_C_UL) == LP_C_UL)) {
+		pr_warn("cfi violation (lpcul): comm = %s, task = %p\n", task->comm, task);
+		return true;
+	}
+
+	return false;
+}
+
+int handle_illegal_instruction(struct pt_regs *regs)
+{
+	/* stval should hold faulting opcode */
+	unsigned long insn = csr_read(stval);
+	struct thread_info *info = NULL;
+	struct task_struct *task = current;
+
+	info = current_thread_info();
+	/* If fcfi enabled and  ELP = 1, suppress ELP (audit mode)  and resume */
+	if (arch_supports_indirect_br_lp_instr() &&
+	   info->user_cfi_state.ufcfi_en && (regs->status & SR_ELP)) {
+		pr_warn("cfi violation (elp): comm = %s, task = %p\n", task->comm, task);
+		regs->status &= ~(SR_ELP);
+		return 0;
+	}
+	/* if faulting opcode is sscheckra/lpcll/lpcml/lpcll, advance PC and resume */
+	if (is_cfi_violation_insn(insn)) {
+		/* no compressed form for zisslpcfi instructions */
+		regs->epc += 4;
+		return 0;
+	}
+
+	return 1;
 }
 
 ulong get_instruction(ulong epc)
@@ -189,8 +246,21 @@ DO_ERROR_INFO(do_trap_insn_misaligned,
 	SIGBUS, BUS_ADRALN, "instruction address misaligned");
 DO_ERROR_INFO(do_trap_insn_fault,
 	SIGSEGV, SEGV_ACCERR, "instruction access fault");
-DO_ERROR_INFO(do_trap_insn_illegal,
-	SIGILL, ILL_ILLOPC, "illegal instruction");
+/*
+ * If CFI enabled then following instructions leads to illegal instruction fault
+ * -- sscheckra: x1 and x5 mismatch
+ * -- ELP = 1, Any instruction other than lpcll will fault
+ * -- lpcll will fault if lower label don't match with LPLR.LL
+ * -- lpcml will fault if lower label don't match with LPLR.ML
+ * -- lpcul will fault if lower label don't match with LPLR.UL
+*/
+asmlinkage void __trap_section do_trap_insn_illegal(struct pt_regs *regs)
+{
+	if (!handle_illegal_instruction(regs))
+		return;
+	do_trap_error(regs, SIGILL, ILL_ILLOPC, regs->epc,
+		      "illegal instruction");
+}
 #ifdef CONFIG_USER_SHADOW_STACK
 asmlinkage void __trap_section do_trap_load_fault(struct pt_regs *regs)
 {
