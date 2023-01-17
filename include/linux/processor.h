@@ -59,7 +59,7 @@ do {								\
 
 #endif
 
-#ifndef CONFIG_SHADOW_STACK
+#ifndef CONFIG_USER_SHADOW_STACK
 static inline bool arch_supports_shadow_stack(void)
 {
 	return false;

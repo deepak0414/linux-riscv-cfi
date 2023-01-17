@@ -91,7 +91,7 @@ int riscv_of_parent_hartid(struct device_node *node, unsigned long *hartid);
 extern void riscv_fill_hwcap(void);
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 
-#ifdef CONFIG_SHADOW_STACK
+#ifdef CONFIG_USER_SHADOW_STACK
 static inline bool arch_supports_shadow_stack(void)
 {
 	return __riscv_isa_extension_available(NULL, RISCV_ISA_EXT_ZCFI);
