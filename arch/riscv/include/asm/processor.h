@@ -46,7 +46,9 @@ struct cfi_status {
        unsigned int ufcfi_en : 1; /* Enable for forward cfi. Note that ELP goes in sstatus */
        unsigned int ubcfi_en : 1; /* Enable for backward cfi. */
        unsigned int audit_mode : 1;
-       unsigned int rsvd1 : 29;
+       unsigned int ufcfi_locked : 1;
+       unsigned int ubcfi_locked : 1;
+       unsigned int rsvd1 : 27;
        unsigned int lp_label; /* saved label value (25bit) */
        long user_shdw_stk; /* Current user shadow stack pointer */
        long shdw_stk_base; /* Base address of shadow stack */
