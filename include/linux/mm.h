@@ -1007,7 +1007,7 @@ bool arch_is_shadow_stack_vma(struct vm_area_struct *vma);
 static inline bool
 is_shadow_stack_vma(struct vm_area_struct *vma)
 {
-#ifdef CONFIG_SHADOW_STACK
+#ifdef CONFIG_USER_SHADOW_STACK
 	return arch_is_shadow_stack_vma(vma);
 #else
 	return false;
