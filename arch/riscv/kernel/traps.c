@@ -152,15 +152,32 @@ int handle_illegal_instruction(struct pt_regs *regs)
 	struct task_struct *task = current;
 
 	info = current_thread_info();
+	/*
+	* If CFI enabled then following instructions leads to illegal instruction fault
+	* -- sscheckra: x1 and x5 mismatch
+	* -- ELP = 1, Any instruction other than lpcll will fault
+	* -- lpcll will fault if lower label don't match with LPLR.LL
+	* -- lpcml will fault if lower label don't match with LPLR.ML
+	* -- lpcul will fault if lower label don't match with LPLR.UL
+	*/
+
 	/* If fcfi enabled and  ELP = 1, suppress ELP (audit mode)  and resume */
 	if (arch_supports_indirect_br_lp_instr() &&
-	   info->user_cfi_state.ufcfi_en && (regs->status & SR_ELP)) {
+#ifdef CONFIG_USER_SHADOW_STACK
+	   info->user_cfi_state.ufcfi_en &&
+	   info->user_cfi_state.audit_mode &&
+#endif
+	   (regs->status & SR_ELP)) {
 		pr_warn("cfi violation (elp): comm = %s, task = %p\n", task->comm, task);
 		regs->status &= ~(SR_ELP);
 		return 0;
 	}
 	/* if faulting opcode is sscheckra/lpcll/lpcml/lpcll, advance PC and resume */
-	if (is_cfi_violation_insn(insn)) {
+	if (is_cfi_violation_insn(insn)
+#if defined(CONFIG_USER_SHADOW_STACK) || defined(CONFIG_USER_INDIRECT_BR_LP)
+	    && info->user_cfi_state.audit_mode
+#endif
+	) {
 		/* no compressed form for zisslpcfi instructions */
 		regs->epc += 4;
 		return 0;
@@ -246,14 +263,7 @@ DO_ERROR_INFO(do_trap_insn_misaligned,
 	SIGBUS, BUS_ADRALN, "instruction address misaligned");
 DO_ERROR_INFO(do_trap_insn_fault,
 	SIGSEGV, SEGV_ACCERR, "instruction access fault");
-/*
- * If CFI enabled then following instructions leads to illegal instruction fault
- * -- sscheckra: x1 and x5 mismatch
- * -- ELP = 1, Any instruction other than lpcll will fault
- * -- lpcll will fault if lower label don't match with LPLR.LL
- * -- lpcml will fault if lower label don't match with LPLR.ML
- * -- lpcul will fault if lower label don't match with LPLR.UL
-*/
+
 asmlinkage void __trap_section do_trap_insn_illegal(struct pt_regs *regs)
 {
 	if (!handle_illegal_instruction(regs))
