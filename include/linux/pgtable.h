@@ -1725,4 +1725,8 @@ pgprot_t vm_get_page_prot(unsigned long vm_flags)			\
 }									\
 EXPORT_SYMBOL(vm_get_page_prot);
 
+#ifndef CONFIG_USER_SHADOW_STACK
+#define pte_mkshdwstk(pte) pte
+#endif
+
 #endif /* _LINUX_PGTABLE_H */
