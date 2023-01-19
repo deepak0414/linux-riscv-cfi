@@ -1283,6 +1283,11 @@ out_free_interp:
 
 	set_binfmt(&elf_format);
 
+#if defined(CONFIG_USER_SHADOW_STACK) || defined(CONFIG_USER_INDIRECT_BR_LP)
+	retval = arch_elf_setup_cfi_state(&arch_state);
+	if (retval < 0)
+		goto out;
+#endif
 #ifdef ARCH_HAS_SETUP_ADDITIONAL_PAGES
 	retval = ARCH_SETUP_ADDITIONAL_PAGES(bprm, elf_ex, !!interpreter);
 	if (retval < 0)
