@@ -96,6 +96,12 @@ void set_indir_lp_lock(struct task_struct *task)
 {
 	task->thread_info.user_cfi_state.ufcfi_locked = 1;
 }
+
+bool is_cfi_audit_enabled(struct task_struct *task)
+{
+	return task->thread_info.user_cfi_state.audit_mode ? true : false;
+}
+
 /*
  * If size is 0, then to be compatible with regular stack we want it to be as big as
  * regular stack. Else PAGE_ALIGN it and return back

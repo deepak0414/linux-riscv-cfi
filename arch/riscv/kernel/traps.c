@@ -339,8 +339,42 @@ asmlinkage __visible __trap_section void do_trap_ecall_u(struct pt_regs *regs)
 
 }
 
+bool enable_ss_backtrace = true;
+uint32_t ss_btrace_count = 10;
+
 #define CFI_TVAL_FCFI_CODE	2
 #define CFI_TVAL_BCFI_CODE	3
+
+void print_shadow_stack_btrace(struct pt_regs *regs)
+{
+	unsigned long *ss_addr = (unsigned long *) get_active_shstk(current);
+	unsigned long pc = 0;
+
+	if (!enable_ss_backtrace)
+		return;
+	/* If sspopchk was the reason, then it was already incremented */
+	if (regs->badaddr == CFI_TVAL_BCFI_CODE) {
+		pr_info("ra is %lx", regs->ra);
+		print_vma_addr(KERN_CONT " at ", regs->ra);
+		pr_cont("\n");
+		pr_info("t0 is %lx", regs->t0);
+		print_vma_addr(KERN_CONT " at ", regs->t0);
+		pr_cont("\n");
+		ss_addr--;
+	}
+
+	__enable_user_access();
+	pr_info("Below is stack trace on cfi violation\n");
+	for (int i = 0; i < ss_btrace_count; i++) {
+		__get_user(pc, ss_addr);
+		pr_info("[%s]%d pc is %lx", current->comm, task_pid_nr(current), pc);
+		print_vma_addr(KERN_CONT " in range ", pc);
+		pr_cont("\n");
+		ss_addr++;
+	}
+	__disable_user_access();
+}
+
 /* handle cfi violations */
 bool handle_user_cfi_violation(struct pt_regs *regs)
 {
@@ -349,8 +383,14 @@ bool handle_user_cfi_violation(struct pt_regs *regs)
 
 	if (((tval == CFI_TVAL_FCFI_CODE) && cpu_supports_indirect_br_lp_instr()) ||
 		((tval == CFI_TVAL_BCFI_CODE) && cpu_supports_shadow_stack())) {
-		do_trap_error(regs, SIGSEGV, SEGV_CPERR, regs->epc,
-					  "Oops - control flow violation");
+		if (likely(!is_cfi_audit_enabled(current))) {
+			print_shadow_stack_btrace(regs);
+			do_trap_error(regs, SIGSEGV, SEGV_CPERR, regs->epc,
+						"Oops - control flow violation");
+		}
+		else
+			regs->epc += 4; /* advance epc by 4 and ignore cfi violation */
+
 		ret = true;
 	}
 
