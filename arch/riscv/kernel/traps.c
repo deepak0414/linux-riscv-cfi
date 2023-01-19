@@ -165,6 +165,7 @@ int handle_illegal_instruction(struct pt_regs *regs)
 	if (arch_supports_indirect_br_lp_instr() &&
 #ifdef CONFIG_USER_INDIRECT_BR_LP
 	    info->user_cfi_state.ufcfi_en &&
+	    info->user_cfi_state.audit_mode &&
 #endif
 	    (regs->status & SR_ELP)) {
 		pr_warn("cfi violation (elp): comm = %s, task = %p\n", task->comm, task);
@@ -172,7 +173,11 @@ int handle_illegal_instruction(struct pt_regs *regs)
 		return 0;
 	}
 	/* if faulting opcode is sscheckra/lpcll/lpcml/lpcll, advance PC and resume */
-	if (is_cfi_violation_insn(insn)) {
+	if (is_cfi_violation_insn(insn)
+#if defined(CONFIG_USER_SHADOW_STACK) || defined(CONFIG_USER_INDIRECT_BR_LP)
+	    && info->user_cfi_state.audit_mode
+#endif
+	) {
 		/* no compressed form for zisslpcfi instructions */
 		regs->epc += 4;
 		return 0;
