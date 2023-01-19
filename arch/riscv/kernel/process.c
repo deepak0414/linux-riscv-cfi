@@ -24,6 +24,7 @@
 #include <asm/switch_to.h>
 #include <asm/thread_info.h>
 #include <asm/cpuidle.h>
+#include <linux/mman.h>
 
 register unsigned long gp_in_global __asm__("gp");
 
@@ -135,6 +136,14 @@ void start_thread(struct pt_regs *regs, unsigned long pc,
 	else
 		regs->status |= SR_UXL_64;
 #endif
+#ifdef CONFIG_USER_SHADOW_STACK
+	if (current_thread_info()->user_cfi_state.ufcfi_en)
+		regs->status |= SR_UFCFIEN;
+#endif
+#ifdef CONFIG_USER_INDIRECT_BR_LP
+	if (current_thread_info()->user_cfi_state.ubcfi_en)
+		regs->status |= SR_UBCFIEN;
+#endif
 }
 
 void flush_thread(void)
@@ -187,3 +196,61 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	p->thread.sp = (unsigned long)childregs; /* kernel sp */
 	return 0;
 }
+
+
+int allocate_shadow_stack(unsigned long *shadow_stack_base, unsigned long *shdw_size)
+{
+	int flags = MAP_ANONYMOUS | MAP_PRIVATE;
+	struct mm_struct *mm = current->mm;
+	unsigned long addr, populate, size;
+	*shadow_stack = 0;
+
+	if (!shdw_size)
+		return -EINVAL;
+
+	size = *shdw_size;
+
+	/* If size is 0, then try to calculate yourself */
+	if (size == 0)
+		size = round_up(min_t(unsigned long long, rlimit(RLIMIT_STACK), SZ_4G), PAGE_SIZE);
+	mmap_write_lock(mm);
+	addr = do_mmap(NULL, 0, size, PROT_SHADOWSTACK, flags, 0,
+		       &populate, NULL);
+	mmap_write_unlock(mm);
+	if (IS_ERR_VALUE(addr))
+		return PTR_ERR((void *)addr);
+	*shadow_stack_base = addr;
+	*shdw_size = size;
+	return 0;
+}
+
+#if defined(CONFIG_USER_SHADOW_STACK) || defined(CONFIG_USER_INDIRECT_BR_LP)
+/* gets called from load_elf_binary(). This'll setup shadow stack and forward cfi enable */
+int arch_elf_setup_cfi_state(const struct arch_elf_state *state)
+{
+	int ret = 0;
+	unsigned long shadow_stack_base = 0;
+	unsigned long shadow_stk_size = 0;
+	struct thread_info *info = NULL;
+
+	info = current_thread_info();
+	/* setup back cfi state */
+	/* setup cfi state only if implementation supports it */
+	if (arch_supports_shadow_stack() && (state->flags & RISCV_ELF_BCFI)) {
+		info->user_cfi_state.ubcfi_en = 1;
+		ret = allocate_shadow_stack(&shadow_stack_base, &shadow_stk_size);
+		if (ret)
+			return ret;
+
+		info->user_cfi_state.user_shdw_stk = (shadow_stack_base + shadow_stk_size);
+		info->user_cfi_state.shdw_stk_base = shadow_stack_base;
+	}
+	/* setup forward cfi state */
+	if (arch_supports_indirect_br_lp_instr() && (state->flags & RISCV_ELF_FCFI)) {
+		info->user_cfi_state.ufcfi_en = 1;
+		info->user_cfi_state.lp_label = 0;
+	}
+
+	return ret;
+}
+#endif
