@@ -121,6 +121,25 @@ config THREAD_INFO_IN_TASK
 	  One subtle change that will be needed is to use try_get_task_stack()
 	  and put_task_stack() in save_thread_stack_tsk() and get_wchan().
 
+config USER_SHADOW_STACK
+	bool
+	help
+	  Select this to enable kernel to support user mode shadow stack. Most
+	  major architectures now support hardware assisted shadow stack. This
+	  allows to enable non-arch specifics related to shadow stack in kernel.
+	  Arch specific configuration options may also need to be enabled.
+
+config USER_INDIRECT_BR_LP
+	bool
+	help
+	  Select this to allow user mode apps to opt-in to force requirement for
+	  a landing pad instruction on indirect jumps or indirect calls in user mode.
+	  Most major architectures now support hardware assistance for landing pad
+	  instruction on indirect call or a jump. This config option allows non-arch
+	  specifics related to landing pad instruction to be enabled separately from
+	  arch specific implementations. Arch specific configuration options may also
+	  need to be enabled.
+
 menu "General setup"
 
 config BROKEN
