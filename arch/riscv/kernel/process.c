@@ -256,3 +256,89 @@ int arch_elf_setup_cfi_state(const struct arch_elf_state *state)
 	return ret;
 }
 #endif
+
+#ifdef CONFIG_USER_SHADOW_STACK
+int arch_get_shadow_stack_status(struct task_struct *t, unsigned long __user *status)
+{
+	unsigned long bcfi_status = 0;
+	struct thread_info *info = NULL;
+
+	if (!arch_supports_shadow_stack())
+		return -EINVAL;
+
+	info = current_thread_info();
+	bcfi_status |= info->user_cfi_state.ubcfi_locked ? (1UL << 0) : 0;
+	bcfi_status |= info->user_cfi_state.ubcfi_en ? ((1UL << 1) |
+		       (info->user_cfi_state.user_shdw_stk)) : 0;
+
+	return copy_to_user(status, &bcfi_status, sizeof(bcfi_status)) ? -EFAULT : 0;
+}
+
+int arch_set_shadow_stack_status(struct task_struct *t, unsigned long __user *status)
+{
+	unsigned long bcfi_status = 0;
+	struct thread_info *info = NULL;
+	unsigned long shdw_stk = 0;
+
+	if (!arch_supports_shadow_stack())
+		return -EINVAL;
+
+	info = current_thread_info();
+	/* bcfi status is locked and further can't be modified by user */
+	if (info->user_cfi_state.ubcfi_locked)
+		return -EINVAL;
+
+	if (copy_from_user(&bcfi_status, status, sizeof(bcfi_status)))
+		return -EFAULT;
+	/* clear two least significant bits. Always assume min 4 byte alignment */
+	shdw_stk = (long) (bcfi_status & (~3));
+
+	if (shdw_stk >= TASK_SIZE)
+		return -EINVAL;
+
+	info->user_cfi_state.ubcfi_en = (bcfi_status & (1UL << 1)) ? 1 : 0;
+	info->user_cfi_state.ubcfi_locked = (bcfi_status & (1UL << 0)) ? 1 : 0;
+	info->user_cfi_state.user_shdw_stk = (long) shdw_stk;
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_USER_INDIRECT_BR_LP
+int arch_get_indir_br_lp_status(struct task_struct *t, unsigned long __user *status)
+{
+	unsigned long fcfi_status = 0;
+	struct thread_info *info = NULL;
+
+	if (!arch_supports_indirect_br_lp_instr())
+		return -EINVAL;
+
+	info = current_thread_info();
+	fcfi_status |= info->user_cfi_state.ufcfi_locked ? (1UL << 0) : 0;
+	fcfi_status |= info->user_cfi_state.ufcfi_en ? (1UL << 1) : 0;
+
+	return copy_to_user(status, &fcfi_status, sizeof(fcfi_status)) ? -EFAULT : 0;
+}
+
+int arch_set_indir_br_lp_status(struct task_struct *t, unsigned long __user *status)
+{
+	unsigned long fcfi_status = 0;
+	struct thread_info *info = NULL;
+
+	if (!arch_supports_indirect_br_lp_instr())
+		return -EINVAL;
+
+	info = current_thread_info();
+	/* bcfi status is locked and further can't be modified by user */
+	if (info->user_cfi_state.ufcfi_locked)
+		return -EINVAL;
+
+	if (copy_from_user(&fcfi_status, status, sizeof(fcfi_status)))
+		return -EFAULT;
+
+	info->user_cfi_state.ufcfi_en = (fcfi_status & (1UL << 1)) ? 1 : 0;
+	info->user_cfi_state.ufcfi_locked = (fcfi_status & (1UL << 0)) ? 1 : 0;
+
+	return 0;
+}
+#endif
