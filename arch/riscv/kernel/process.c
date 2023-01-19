@@ -244,11 +244,13 @@ int arch_elf_setup_cfi_state(const struct arch_elf_state *state)
 
 		info->user_cfi_state.user_shdw_stk = (shadow_stack_base + shadow_stk_size);
 		info->user_cfi_state.shdw_stk_base = shadow_stack_base;
+		info->user_cfi_state.audit_mode = 1;
 	}
 	/* setup forward cfi state */
 	if (arch_supports_indirect_br_lp_instr() && (state->flags & RISCV_ELF_FCFI)) {
 		info->user_cfi_state.ufcfi_en = 1;
 		info->user_cfi_state.lp_label = 0;
+		info->user_cfi_state.audit_mode = 1;
 	}
 
 	return ret;
