@@ -18,7 +18,8 @@ struct cfi_status {
 	unsigned long ubcfi_locked : 1;
 	unsigned long ufcfi_en : 1; /* Enable for forward cfi. Note that ELP goes in sstatus */
 	unsigned long ufcfi_locked : 1;
-	unsigned long rsvd : ((sizeof(unsigned long)*8) - 4);
+	unsigned long audit_mode : 1;
+	unsigned long rsvd : ((sizeof(unsigned long)*8) - 5);
 	unsigned long user_shdw_stk; /* Current user shadow stack pointer */
 	unsigned long shdw_stk_base; /* Base address of shadow stack */
 	unsigned long shdw_stk_size; /* size of shadow stack */
@@ -31,6 +32,7 @@ void set_shstk_base(struct task_struct *task, unsigned long shstk_addr, unsigned
 void set_active_shstk(struct task_struct *task, unsigned long shstk_addr);
 bool is_shstk_enabled(struct task_struct *task);
 unsigned long get_active_shstk(struct task_struct *task);
+bool is_cfi_audit_enabled(struct task_struct *task);
 
 #define PR_SHADOW_STACK_SUPPORTED_STATUS_MASK (PR_SHADOW_STACK_ENABLE)
 
@@ -66,6 +68,11 @@ static inline bool is_shstk_enabled(struct task_struct *task)
 static inline unsigned long get_active_shstk(struct task_struct *task)
 {
 	return 0;
+}
+
+static inline bool is_cfi_audit_enabled(struct task_struct *task)
+{
+	return false;
 }
 
 #endif /* CONFIG_RISCV_USER_CFI */

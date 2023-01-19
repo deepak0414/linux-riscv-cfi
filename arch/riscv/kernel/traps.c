@@ -349,8 +349,11 @@ bool handle_user_cfi_violation(struct pt_regs *regs)
 
 	if (((tval == CFI_TVAL_FCFI_CODE) && cpu_supports_indirect_br_lp_instr()) ||
 		((tval == CFI_TVAL_FCFI_CODE) && cpu_supports_shadow_stack())) {
-		do_trap_error(regs, SIGSEGV, SEGV_CPERR, regs->epc,
-					  "Oops - control flow violation");
+		if (likely(!is_cfi_audit_enabled(current)))
+			do_trap_error(regs, SIGSEGV, SEGV_CPERR, regs->epc,
+						"Oops - control flow violation");
+		else
+			regs->epc += 4; /* advance epc by 4 and ignore cfi violation */
 		ret = true;
 	}
 
