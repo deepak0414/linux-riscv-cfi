@@ -16,6 +16,7 @@
 #include <asm/unistd.h>
 #include <asm-generic/mman-common.h>
 #include <vdso/vsyscall.h>
+#include <asm/mman.h>
 
 static long riscv_sys_mmap(unsigned long addr, unsigned long len,
 			   unsigned long prot, unsigned long flags,
@@ -23,6 +24,24 @@ static long riscv_sys_mmap(unsigned long addr, unsigned long len,
 			   unsigned long page_shift_offset)
 {
 	if (unlikely(offset & (~PAGE_MASK >> page_shift_offset)))
+		return -EINVAL;
+
+	/*
+	 * If only PROT_WRITE is specified then extend that to PROT_READ
+	 * protection_map[VM_WRITE] is now going to select shadow stack encodings.
+	 * So specifying PROT_WRITE actually should select protection_map [VM_WRITE | VM_READ]
+	 * If user wants to create shadow stack then they should use `map_shadow_stack` syscall.
+	 */
+	if (unlikely((prot & PROT_WRITE) && !(prot & PROT_READ)))
+		prot |= PROT_READ;
+
+	/*
+	 * PROT_SHADOWSTACK is a kernel only protection flag on risc-v.
+	 * mmap doesn't expect PROT_SHADOWSTACK to be set by user space.
+	 * User space can rely on `map_shadow_stack` syscall to create
+	 * shadow stack pages.
+	 */
+	if (unlikely(prot & PROT_SHADOWSTACK))
 		return -EINVAL;
 
 	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
