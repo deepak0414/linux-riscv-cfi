@@ -22,4 +22,21 @@
  */
 #define PROT_SHADOWSTACK	0x40
 
+static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
+	unsigned long pkey __always_unused)
+{
+	unsigned long ret = 0;
+
+	if (cpu_supports_shadow_stack())
+		ret = (prot & PROT_SHADOWSTACK) ? (VM_SHADOW_STACK | VM_WRITE) : 0;
+	/*
+	 * If PROT_WRITE was specified, force it to VM_READ | VM_WRITE.
+	 * Only VM_WRITE means shadow stack.
+	 */
+	if (prot & PROT_WRITE)
+		ret = (VM_READ | VM_WRITE);
+	return ret;
+}
+#define arch_calc_vm_prot_bits(prot, pkey) arch_calc_vm_prot_bits(prot, pkey)
+
 #endif /* ! __ASM_MMAN_H__ */
