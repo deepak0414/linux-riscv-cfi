@@ -233,3 +233,10 @@ bool kernel_page_present(struct page *page)
 	pte = pte_offset_kernel(pmd, addr);
 	return pte_present(*pte);
 }
+
+#ifdef CONFIG_USER_SHADOW_STACK
+bool arch_is_shadow_stack_vma(struct vm_area_struct *vma)
+{
+	return ((vma->vm_flags & (VM_WRITE | VM_READ | VM_EXEC)) == VM_WRITE);
+}
+#endif

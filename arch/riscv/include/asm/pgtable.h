@@ -344,6 +344,14 @@ static inline pte_t pte_mkwrite(pte_t pte)
 	return __pte(pte_val(pte) | _PAGE_WRITE);
 }
 
+#ifdef CONFIG_USER_SHADOW_STACK
+static inline pte_t pte_mkshdwstk(pte_t pte)
+{
+	/* shadow stack on risc-v is XWR = 010. Clear everything and only set _PAGE_WRITE */
+	return __pte((pte_val(pte) & ~(_PAGE_LEAF)) | _PAGE_WRITE);
+}
+#endif
+
 /* static inline pte_t pte_mkexec(pte_t pte) */
 
 static inline pte_t pte_mkdirty(pte_t pte)
