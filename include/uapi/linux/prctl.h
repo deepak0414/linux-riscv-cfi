@@ -284,4 +284,30 @@ struct prctl_mm_map {
 #define PR_SET_VMA		0x53564d41
 # define PR_SET_VMA_ANON_NAME		0
 
+/*
+ * get shadow stack status for current thread. Assumes shadow stack is min 4 byte aligned.
+ * Note shadow stack can be 8 byte aligned on 64bit.
+ * Lower 2 bits can give status of locked and enabled/disabled.
+ * size and address range can be obtained via /proc/maps. get_shadow_stack_status will
+ * return base of shadow stack.
+ */
+#define PR_GET_SHADOW_STACK_STATUS      65
+/*
+ * set shadow stack status for current thread (including enabling, disabling or locking)
+ * note that it will only set the status and setup of the shadow stack. Allocating shadow
+ * stack should be done separately using mmap.
+ */
+#define PR_SET_SHADOW_STACK_STATUS      66
+# define PR_SHADOW_STACK_LOCK           (1UL << 0)
+# define PR_SHADOW_STACK_ENABLE         (1UL << 1)
+
+/* get status of requirement of a landing pad instruction for current thread */
+#define PR_GET_INDIRECT_BR_LP_STATUS    67
+/*
+ * set status of requirement of a landing pad instruction for current thread
+ * (including enabling, disabling or locking)
+ */
+#define PR_SET_INDIRECT_BR_LP_STATUS    68
+# define PR_INDIRECT_BR_LP_LOCK         (1UL << 0)
+# define PR_INDIRECT_BR_LP_ENABLE       (1UL << 1)
 #endif /* _LINUX_PRCTL_H */
