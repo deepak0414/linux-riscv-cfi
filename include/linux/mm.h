@@ -1319,6 +1319,21 @@ static inline unsigned long thp_size(struct page *page)
 }
 
 #ifdef CONFIG_MMU
+
+#ifdef CONFIG_USER_SHADOW_STACK
+bool arch_is_shadow_stack_vma(struct vm_area_struct *vma);
+#endif
+
+static inline bool
+is_shadow_stack_vma(struct vm_area_struct *vma)
+{
+#ifdef CONFIG_USER_SHADOW_STACK
+	return arch_is_shadow_stack_vma(vma);
+#else
+	return false;
+#endif
+}
+
 /*
  * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
  * servicing faults for write access.  In the normal case, do always want
@@ -1327,8 +1342,12 @@ static inline unsigned long thp_size(struct page *page)
  */
 static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
 {
-	if (likely(vma->vm_flags & VM_WRITE))
-		pte = pte_mkwrite(pte, vma);
+	if (likely(vma->vm_flags & VM_WRITE)) {
+		if (unlikely(is_shadow_stack_vma(vma)))
+			pte = pte_mkshdwstk(pte);
+		else
+			pte = pte_mkwrite(pte, vma);
+	}
 	return pte;
 }
 
