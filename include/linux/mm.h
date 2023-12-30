@@ -352,6 +352,10 @@ extern unsigned int kobjsize(const void *objp);
  * for more details on the guard size.
  */
 # define VM_SHADOW_STACK	VM_HIGH_ARCH_5
+static inline bool arch_is_shadow_stack_vma(vm_flags_t vm_flags)
+{
+	return (vm_flags & VM_SHADOW_STACK) ? true : false;
+}
 #endif
 
 #ifdef CONFIG_RISCV_USER_CFI
@@ -362,10 +366,22 @@ extern unsigned int kobjsize(const void *objp);
  * with VM_SHARED.
  */
 #define VM_SHADOW_STACK	VM_WRITE
+
+static inline bool arch_is_shadow_stack_vma(vm_flags_t vm_flags)
+{
+	return ((vm_flags & (VM_WRITE | VM_READ | VM_EXEC)) == VM_WRITE);
+}
+
 #endif
 
 #ifndef VM_SHADOW_STACK
 # define VM_SHADOW_STACK	VM_NONE
+
+static inline bool arch_is_shadow_stack_vma(vm_flags_t vm_flags)
+{
+	return false;
+}
+
 #endif
 
 #if defined(CONFIG_X86)
@@ -3464,7 +3480,7 @@ static inline unsigned long stack_guard_start_gap(struct vm_area_struct *vma)
 		return stack_guard_gap;
 
 	/* See reasoning around the VM_SHADOW_STACK definition */
-	if (vma->vm_flags & VM_SHADOW_STACK)
+	if (vma->vm_flags & arch_is_shadow_stack_vma(vma->vm_flags))
 		return PAGE_SIZE;
 
 	return 0;
