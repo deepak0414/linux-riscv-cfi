@@ -985,6 +985,9 @@ void __noreturn make_task_dead(int signr)
 
 SYSCALL_DEFINE1(exit, int, error_code)
 {
+	pr_info("%s[%d]: exit was called with error code %d\n",
+		current->comm, task_pid_nr(current), error_code);
+
 	do_exit((error_code&0xff)<<8);
 }
 
@@ -1029,6 +1032,9 @@ do_group_exit(int exit_code)
  */
 SYSCALL_DEFINE1(exit_group, int, error_code)
 {
+	pr_info("%s[%d]: exit was called with error code %d\n",
+		current->comm, task_pid_nr(current), error_code);
+
 	do_group_exit((error_code & 0xff) << 8);
 	/* NOTREACHED */
 	return 0;

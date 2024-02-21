@@ -5936,9 +5936,10 @@ void print_vma_addr(char *prefix, unsigned long ip)
 			p = file_path(f, buf, PAGE_SIZE);
 			if (IS_ERR(p))
 				p = "?";
-			printk("%s%s[%lx+%lx]", prefix, kbasename(p),
+			printk("%s%s[%lx+%lx] abc pc : %lx", prefix, kbasename(p),
 					vma->vm_start,
-					vma->vm_end - vma->vm_start);
+					vma->vm_end - vma->vm_start,
+					ip - vma->vm_start);
 			free_page((unsigned long)buf);
 		}
 	}
