@@ -450,6 +450,9 @@ int arch_set_shadow_stack_status(struct task_struct *t, unsigned long status)
 		shstk_release(t);
 
 	set_shstk_status(t, enable_shstk);
+	pr_info("%s[%d]: arch_set_shadow_stack_status set successfully, shadow stack"
+			"base %lx, size %lx\n", t->comm, task_pid_nr(t), addr, size);
+
 	return 0;
 }
 
@@ -499,6 +502,9 @@ int arch_set_indir_br_lp_status(struct task_struct *t, unsigned long status)
 
 	enable_indir_lp = (status & PR_INDIR_BR_LP_ENABLE) ? true : false;
 	set_indir_lp_status(t, enable_indir_lp);
+
+	pr_info("%s[%d]: arch_set_indir_br_lp_status set successfully\n",
+			t->comm, task_pid_nr(t));
 
 	return 0;
 }
