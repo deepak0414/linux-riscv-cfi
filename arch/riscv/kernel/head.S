@@ -164,6 +164,12 @@ secondary_start_sbi:
 	call relocate_enable_mmu
 #endif
 	call .Lsetup_trap_vector
+	li a7, 0x46574654 /* SBI_EXT_FWFT */
+	li a6, 0 /* SBI_EXT_FWFT_SET */
+	li a0, 2 /* SBI_FWFT_SHADOW_STACK */
+	li a1, 1 /* value */
+	li a2, 1 /* SBI_FWFT_SET_FLAG_LOCK */
+	ecall
 	scs_load_current
 	call smp_callin
 #endif /* CONFIG_SMP */
@@ -320,6 +326,12 @@ SYM_CODE_START(_start_kernel)
 	la tp, init_task
 	la sp, init_thread_union + THREAD_SIZE
 	addi sp, sp, -PT_SIZE_ON_STACK
+	li a7, 0x46574654 /* SBI_EXT_FWFT */
+	li a6, 0 /* SBI_EXT_FWFT_SET */
+	li a0, 2 /* SBI_FWFT_SHADOW_STACK */
+	li a1, 1 /* value */
+	li a2, 1 /* SBI_FWFT_SET_FLAG_LOCK */
+	ecall
 	scs_load_current
 
 #ifdef CONFIG_KASAN
